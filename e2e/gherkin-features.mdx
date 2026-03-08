@@ -1,0 +1,613 @@
+---
+title: Gherkin Features
+description: Writing behavior-driven tests using Gherkin syntax and Cucumber
+---
+
+## What is Gherkin?
+
+Gherkin is a business-readable, domain-specific language that lets you describe software behavior without detailing how that behavior is implemented. It uses structured natural language to define test cases in a format that both technical and non-technical stakeholders can understand.
+
+### BDD (Behavior-Driven Development)
+
+Gherkin is the language used in BDD, which focuses on:
+
+- **Collaboration**: Shared understanding between developers, testers, and business stakeholders
+- **Living Documentation**: Tests serve as up-to-date documentation
+- **User Focus**: Tests describe system behavior from the user's perspective
+- **Acceptance Criteria**: Features define what "done" means
+
+## Gherkin Syntax
+
+Gherkin uses specific keywords to structure test scenarios:
+
+| Keyword | Purpose |
+|---------|----------|
+| `Feature` | Groups related scenarios and provides context |
+| `Scenario` | Describes a specific test case |
+| `Given` | Sets up initial context/preconditions |
+| `When` | Describes the action being tested |
+| `Then` | Specifies expected outcomes |
+| `And` | Adds additional steps of the same type |
+| `But` | Adds contrasting steps (rarely used) |
+| `Background` | Common steps run before each scenario |
+| `Scenario Outline` | Template for data-driven scenarios |
+| `Examples` | Data table for Scenario Outlines |
+
+## Feature File Structure
+
+Feature files are stored in `tests/features/` with the `.feature` extension.
+
+### Basic Structure
+
+```gherkin
+@tag
+Feature: Feature Name
+
+  Feature description providing context and business value.
+
+  Scenario: Scenario name
+    Given initial context
+    When action occurs
+    Then expected outcome
+```
+
+### Anatomy of a Feature
+
+<Steps>
+  <Step title="Tags">
+    Optional identifiers for organizing and filtering tests
+    
+    ```gherkin
+    @login @critical
+    ```
+  </Step>
+  
+  <Step title="Feature">
+    High-level description of the functionality being tested
+    
+    ```gherkin
+    Feature: Login
+    ```
+  </Step>
+  
+  <Step title="Description">
+    Optional context explaining the feature's purpose
+    
+    ```gherkin
+    Se realizan pruebas de login para validar el acceso a la aplicación.
+    ```
+  </Step>
+  
+  <Step title="Scenarios">
+    Individual test cases within the feature
+    
+    ```gherkin
+    Scenario: Validar un login con error de contraseña
+    ```
+  </Step>
+</Steps>
+
+## Real Examples
+
+### Login Feature
+
+**Location**: `tests/features/login.feature`
+
+```gherkin
+@login
+Feature: Login
+
+  Se realizan pruebas de login para validar el acceso a la aplicación.
+
+  Scenario: Validar un login con error de contraseña
+    Given que estoy en la página de login
+    When  ingreso una contraseña "Prueba123#"
+    Then  valido mensaje de error "El código de acceso no es válido. Por favor, verifica e intenta nuevamente."
+
+  Scenario: Realizo un login correctamente 
+    Given  que estoy en la página de login
+    When   ingreso la contraseña correcta 
+    Then   valido que se redirige a la página principal
+```
+
+#### Key Elements
+
+<Accordion title="@login Tag">
+  Allows running only login tests:
+  
+  ```bash
+  npx cucumber-js --tags "@login"
+  ```
+</Accordion>
+
+<Accordion title="Two Scenarios">
+  - **Negative test**: Invalid password shows error
+  - **Positive test**: Valid password redirects correctly
+</Accordion>
+
+<Accordion title="Parameter Passing">
+  Strings in quotes (`"Prueba123#"`) are passed to step definitions as parameters.
+</Accordion>
+
+### Invoices Feature
+
+**Location**: `tests/features/invoices.feature`
+
+```gherkin
+@invoices
+Feature: Facturación
+    
+  Se realiza la validación de facturación desde creación hasta eliminación.
+
+Scenario: Creción de una factura 
+  Given realizo un login para facturas
+  When  realizo la creación de una factura con los siguientes datos:
+    | Campo          | Valor                |
+    | Número         | 9999999              |
+    | Monto          | 100.00               |
+    | Estado         | Vigente              |
+  Then valido que la creación de la factura con los datos ingresados:
+    | Campo          | Valor                |
+    | Número         | 9999999              |
+    | Monto          | $100.00              |
+    | Estado         | Vigente              |
+
+Scenario: Edición de una factura
+  Given realizo un login para facturas
+  When  busco la factura con el número "9999999"
+  And   realizo la edición de una factura con los siguientes datos:
+    | Campo          | Valor                |
+    | Número         | 9999999              |
+    | Monto          | 150.00               |
+    | Estado         | Pagado               |
+  Then valido que la edición de la factura con los datos ingresados:
+    | Campo          | Valor                |
+    | Número         | 9999999              |
+    | Monto          | $150.00              |
+    | Estado         | Pagado               |
+
+Scenario: Eliminación de factura 
+  Given  realizo un login para facturas
+  Then  realizo la eliminación y confirmación de la factura con el número "9999999"
+```
+
+#### Advanced Features
+
+<CardGroup cols={2}>
+  <Card title="Data Tables" icon="table">
+    Structured data passed to step definitions for form filling and validation
+  </Card>
+  
+  <Card title="And Keyword" icon="plus">
+    Chains multiple When or Then steps for complex workflows
+  </Card>
+  
+  <Card title="Workflow Testing" icon="diagram-project">
+    Three scenarios test the complete CRUD cycle: Create → Update → Delete
+  </Card>
+  
+  <Card title="Reusable Steps" icon="recycle">
+    `Given realizo un login para facturas` is reused across all scenarios
+  </Card>
+</CardGroup>
+
+## Data Tables
+
+Data tables provide structured input to step definitions.
+
+### Format
+
+```gherkin
+When realizo la creación de una factura con los siguientes datos:
+  | Campo          | Valor                |
+  | Número         | 9999999              |
+  | Monto          | 100.00               |
+  | Estado         | Vigente              |
+```
+
+### Accessing in Step Definitions
+
+```typescript
+When('realizo la creación de una factura con los siguientes datos:', 
+  async function (dataTable) {
+    const invoiceData = dataTable.rowsHash();
+    // invoiceData = { 'Número': '9999999', 'Monto': '100.00', 'Estado': 'Vigente' }
+    
+    await invoicesPage.fillInvoiceForm(invoiceData);
+});
+```
+
+### Data Table Methods
+
+| Method | Use Case | Output |
+|--------|----------|--------|
+| `rowsHash()` | Key-value pairs | `{ key1: value1, key2: value2 }` |
+| `rows()` | Array of arrays | `[['h1', 'h2'], ['v1', 'v2']]` |
+| `hashes()` | Array of objects | `[{ h1: 'v1', h2: 'v2' }]` |
+
+## Step Definitions
+
+Step definitions map Gherkin steps to executable code.
+
+### Location
+
+`tests/steps/*.ts`
+
+### Login Steps
+
+**File**: `tests/steps/loginSteps.ts`
+
+```typescript
+import 'dotenv/config';
+import { Given, When, Then } from '@cucumber/cucumber';
+import { page } from './Hooks';
+import { expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
+
+let loginPage: LoginPage;
+
+Given('que estoy en la página de login', async function () {
+  loginPage = new LoginPage(page);
+  const hostPage = process.env.HOST_PAGE;
+  await loginPage.navigateTo(hostPage as string);
+});
+
+When('ingreso una contraseña {string}', async function (password: string) {
+  await loginPage.enterPassword(password);
+  await loginPage.clickSubmit();
+});
+
+Then('valido mensaje de error {string}', async function (expectedMessage: string) {
+  await loginPage.validateErrorMessage(expectedMessage);
+});
+
+When('ingreso la contraseña correcta', async function () {
+  const correctPassword = process.env.QA_PASSWORD as string;
+  await loginPage.enterPassword(correctPassword);
+  await loginPage.clickSubmit();
+});
+
+Then('valido que se redirige a la página principal', async function () {
+  const expectedUrl = process.env.HOST_PAGE + '/' as string;
+  const currentUrl = loginPage.getPage().url();
+  expect(currentUrl).toBe(expectedUrl);
+});
+```
+
+### Invoice Steps
+
+**File**: `tests/steps/invoicesSteps.ts`
+
+```typescript
+import { Given, When, Then } from '@cucumber/cucumber';
+import { page } from './Hooks';
+import { LoginPage } from '../pages/LoginPage';
+import { InvoicesPage } from '../pages/invoicesPage';
+import { expect } from '@playwright/test';
+
+let loginPage: LoginPage;
+let invoicesPage: InvoicesPage;
+
+Given('realizo un login para facturas', async function () {
+  loginPage = new LoginPage(page);
+  invoicesPage = new InvoicesPage(page);
+  await loginPage.loginWithPassword();
+});
+
+When('realizo la creación de una factura con los siguientes datos:', 
+  async function (dataTable) {
+    await invoicesPage.clickCreateInvoice();
+    const invoiceData = dataTable.rowsHash();
+    await invoicesPage.fillInvoiceForm(invoiceData);
+    await invoicesPage.clickSaveButton();
+    await invoicesPage.findInvoiceInListCreated(invoiceData['Número']);
+});
+
+Then('valido que la creación de la factura con los datos ingresados:', 
+  async function (dataTable) {
+    const invoiceData = dataTable.rowsHash();
+    await invoicesPage.validateInvoiceCreation(invoiceData);
+});
+
+When('busco la factura con el número {string}', async function (invoiceNumber) {
+  await invoicesPage.findInvoiceInListCreated(invoiceNumber);
+});
+```
+
+### Step Definition Patterns
+
+<Accordion title="Cucumber Expressions">
+  Use curly braces to capture parameters:
+  
+  ```typescript
+  When('ingreso una contraseña {string}', async function (password: string) {
+    // password contains the captured string
+  });
+  ```
+</Accordion>
+
+<Accordion title="Regular Expressions">
+  For more complex patterns:
+  
+  ```typescript
+  When(/^ingreso una contraseña "([^"]*)"$/, async function (password: string) {
+    // Same as above, using regex
+  });
+  ```
+</Accordion>
+
+<Accordion title="Parameter Types">
+  Supported parameter types:
+  - `{string}` - Quoted string
+  - `{int}` - Integer number
+  - `{float}` - Floating point number
+  - `{word}` - Single word
+</Accordion>
+
+## Running Feature Tests
+
+### Run All Features
+
+```bash
+npx cucumber-js
+```
+
+### Run Specific Feature File
+
+```bash
+npx cucumber-js tests/features/login.feature
+```
+
+### Run by Tag
+
+```bash
+# Run only login tests
+npx cucumber-js --tags "@login"
+
+# Run only invoice tests
+npx cucumber-js --tags "@invoices"
+
+# Run multiple tags (OR)
+npx cucumber-js --tags "@login or @invoices"
+
+# Run combined tags (AND)
+npx cucumber-js --tags "@login and @critical"
+
+# Exclude tags
+npx cucumber-js --tags "not @slow"
+```
+
+### Run Specific Scenario
+
+```bash
+# By line number
+npx cucumber-js tests/features/login.feature:6
+
+# By scenario name (partial match)
+npx cucumber-js --name "login con error"
+```
+
+### Parallel Execution
+
+```bash
+npx cucumber-js --parallel 4
+```
+
+### Format Options
+
+```bash
+# Pretty console output (default)
+npx cucumber-js --format progress
+
+# JSON report
+npx cucumber-js --format json:reports/cucumber.json
+
+# HTML report (requires plugin)
+npx cucumber-js --format html:reports/cucumber.html
+
+# Multiple formats
+npx cucumber-js --format progress --format json:reports/cucumber.json
+```
+
+## Best Practices
+
+### 1. Use Descriptive Scenario Names
+
+<CodeGroup>
+```gherkin Good
+Scenario: Validar un login con error de contraseña
+```
+
+```gherkin Avoid
+Scenario: Test 1
+```
+</CodeGroup>
+
+### 2. Keep Scenarios Independent
+
+Each scenario should be able to run independently:
+
+```gherkin
+# Good - Each scenario logs in
+Scenario: Crear factura
+  Given realizo un login para facturas
+  When realizo la creación de una factura
+
+Scenario: Editar factura
+  Given realizo un login para facturas
+  When busco la factura
+```
+
+### 3. Use Tags Strategically
+
+```gherkin
+@smoke @critical
+Scenario: Login básico
+
+@regression @invoices
+Scenario: CRUD de facturas completo
+
+@slow @integration
+Scenario: Procesamiento masivo
+```
+
+### 4. Write Business-Focused Steps
+
+<CodeGroup>
+```gherkin Good - Business Language
+When el usuario crea una factura
+Then la factura aparece en la lista
+```
+
+```gherkin Avoid - Technical Details
+When el usuario hace clic en el botón con clase ".btn-create"
+Then el elemento con id "#invoice-list" contiene el texto
+```
+</CodeGroup>
+
+### 5. Use Background for Common Setup
+
+```gherkin
+Feature: Gestión de Facturas
+
+  Background:
+    Given realizo un login para facturas
+    And estoy en la página de facturas
+
+  Scenario: Crear factura
+    When creo una nueva factura
+    Then veo la factura en la lista
+
+  Scenario: Editar factura
+    When edito una factura existente
+    Then veo los cambios reflejados
+```
+
+### 6. Use Scenario Outlines for Similar Tests
+
+```gherkin
+Scenario Outline: Validar campos requeridos
+  Given que estoy en el formulario de factura
+  When dejo el campo "<campo>" vacío
+  And intento guardar
+  Then veo el mensaje de error "<mensaje>"
+
+  Examples:
+    | campo  | mensaje                        |
+    | Número | El número es requerido         |
+    | Monto  | El monto es requerido          |
+    | Estado | El estado es requerido         |
+```
+
+### 7. Organize Features by Domain
+
+```
+tests/features/
+├── authentication/
+│   ├── login.feature
+│   └── logout.feature
+├── invoices/
+│   ├── invoice-crud.feature
+│   └── invoice-search.feature
+└── reports/
+    └── report-generation.feature
+```
+
+## Debugging Feature Tests
+
+### Add Console Logs
+
+```typescript
+When('realizo la creación de una factura con los siguientes datos:', 
+  async function (dataTable) {
+    const invoiceData = dataTable.rowsHash();
+    console.log('Creating invoice with data:', invoiceData);
+    
+    await invoicesPage.fillInvoiceForm(invoiceData);
+});
+```
+
+### Use this.attach for Screenshots
+
+```typescript
+After(async function (scenario) {
+  if (scenario.result?.status === 'failed') {
+    const screenshot = await page.screenshot();
+    this.attach(screenshot, 'image/png');
+  }
+});
+```
+
+### Dry Run
+
+Check if all steps are defined without executing them:
+
+```bash
+npx cucumber-js --dry-run
+```
+
+### List Undefined Steps
+
+```bash
+npx cucumber-js --dry-run --format snippets
+```
+
+This generates boilerplate code for missing step definitions.
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Undefined Step">
+    **Error**: `Undefined. Implement with the following snippet:`
+    
+    **Solution**: Add the step definition to the appropriate steps file:
+    
+    ```typescript
+    When('nueva acción {string}', async function (param: string) {
+      // Implementation
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Ambiguous Step">
+    **Error**: `Multiple step definitions match`
+    
+    **Solution**: Make step patterns more specific or use different wording in feature files.
+  </Accordion>
+  
+  <Accordion title="Step Failed">
+    **Error**: Step execution throws an error
+    
+    **Solution**: Check:
+    - Element selectors are correct
+    - Page is loaded before interaction
+    - Async/await is used properly
+    - Environment variables are set
+  </Accordion>
+  
+  <Accordion title="Data Table Parsing">
+    **Error**: Cannot read properties of undefined
+    
+    **Solution**: Ensure you're using the correct data table method:
+    - `rowsHash()` for key-value tables
+    - `rows()` for arrays
+    - `hashes()` for array of objects
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Writing Tests" icon="code" href="/e2e/writing-tests">
+    Learn how to implement step definitions
+  </Card>
+  <Card title="Page Object Model" icon="cube" href="/e2e/page-object-model">
+    Understand page objects used in steps
+  </Card>
+  <Card title="E2E Overview" icon="circle-info" href="/e2e/overview">
+    Overview of the E2E testing framework
+  </Card>
+  <Card title="Cucumber.js Docs" icon="external-link" href="https://github.com/cucumber/cucumber-js">
+    Official Cucumber.js documentation
+  </Card>
+</CardGroup>

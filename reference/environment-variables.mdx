@@ -1,0 +1,451 @@
+---
+title: 'Environment Variables'
+description: 'Configuration guide for environment variables in the Contalink Test Framework'
+icon: 'key'
+---
+
+## Overview
+
+The Contalink Test Framework uses environment variables to configure test execution parameters, API endpoints, and authentication credentials. Variables are stored in a `.env` file and loaded automatically during test execution.
+
+<Warning>
+Never commit the `.env` file to version control. Add it to `.gitignore` to prevent accidental exposure of sensitive data.
+</Warning>
+
+## Required Variables
+
+### HOST_PAGE
+
+The base URL of the application under test.
+
+**Type:** `string` (URL)
+
+**Used by:**
+- Playwright configuration (`playwright.config.ts:27`)
+- Login steps (`loginSteps.ts:11`)
+- Performance tests (`performanceTest.js:5`)
+
+**Purpose:**
+- Sets the base URL for browser navigation
+- Used in `page.goto()` calls throughout tests
+- Configures Playwright's `baseURL` setting
+- Targets API endpoint for K6 performance tests
+
+**Example:**
+```bash
+HOST_PAGE=https://app.contalink.com
+```
+
+**Usage in code:**
+```typescript
+// playwright.config.ts:27
+baseURL: process.env.HOST_PAGE
+
+// loginSteps.ts:11
+const hostPage = process.env.HOST_PAGE;
+await loginPage.navigateTo(hostPage as string);
+
+// performanceTest.js:5
+const url_api = __ENV.HOST_PAGE;
+```
+
+<Tip>
+For local development, you can use `http://localhost:3000` or your local dev server URL.
+</Tip>
+
+### QA_PASSWORD
+
+Authentication password or access token for the test environment.
+
+**Type:** `string`
+
+**Used by:**
+- Login steps (`loginSteps.ts:27`)
+- Backend API tests (`backTestSteps.ts:7`)
+- Performance tests (`performanceTest.js:6`)
+
+**Purpose:**
+- Authenticate test user during login flows
+- Provide authorization token for API requests
+- Enable access to protected endpoints
+- Used in HTTP Authorization headers
+
+**Example:**
+```bash
+QA_PASSWORD=your_secure_access_token_here
+```
+
+**Usage in code:**
+```typescript
+// loginSteps.ts:27
+const correctPassword = process.env.QA_PASSWORD as string;
+await loginPage.enterPassword(correctPassword);
+
+// backTestSteps.ts:7
+const token = process.env.QA_PASSWORD as string;
+response = await BackTestPage.prototype.viewAllInvoices(url, token);
+
+// performanceTest.js:29
+headers: {
+  'Authorization': token,
+}
+```
+
+<Warning>
+This is a sensitive credential. Use a dedicated test account with limited permissions. Rotate credentials regularly.
+</Warning>
+
+### API_TEST
+
+The base URL for backend API testing.
+
+**Type:** `string` (URL)
+
+**Used by:**
+- Backend test steps (`backTestSteps.ts:6`)
+
+**Purpose:**
+- Target API endpoints for CRUD operation tests
+- Separate API URL from frontend URL if different
+- Enable testing against different API environments
+
+**Example:**
+```bash
+API_TEST=https://api.contalink.com
+```
+
+**Usage in code:**
+```typescript
+// backTestSteps.ts:6
+const url = process.env.API_TEST as string;
+response = await BackTestPage.prototype.viewAllInvoices(url, token);
+```
+
+**API Endpoints:**
+- `GET ${API_TEST}/V1/invoices` - List all invoices
+- `GET ${API_TEST}/V1/invoices?invoice_number={number}` - Search
+- `POST ${API_TEST}/V1/invoices` - Create invoice
+- `PUT ${API_TEST}/V1/invoices/{id}` - Update invoice
+- `PATCH ${API_TEST}/V1/invoices/{id}` - Partial update
+- `DELETE ${API_TEST}/V1/invoices/{id}` - Delete invoice
+
+<Note>
+If your frontend and API share the same domain, `API_TEST` and `HOST_PAGE` can be the same value.
+</Note>
+
+## Setting Up Environment Variables
+
+### Step 1: Create .env File
+
+Create a `.env` file in the project root directory:
+
+```bash
+touch .env
+```
+
+### Step 2: Add Variables
+
+Open `.env` and add your configuration:
+
+```bash
+# Application URLs
+HOST_PAGE=https://your-app-url.com
+API_TEST=https://your-api-url.com
+
+# Authentication
+QA_PASSWORD=your_secure_token_here
+```
+
+### Step 3: Verify .gitignore
+
+Ensure `.env` is listed in `.gitignore`:
+
+```bash
+# .gitignore
+.env
+.env.local
+.env.*.local
+```
+
+### Step 4: Test Configuration
+
+Verify environment variables are loaded:
+
+```bash
+node -e "require('dotenv').config(); console.log(process.env.HOST_PAGE);"
+```
+
+## Environment Templates
+
+### Development Environment
+
+```bash
+# .env.development
+HOST_PAGE=http://localhost:3000
+API_TEST=http://localhost:3000
+QA_PASSWORD=dev_test_password_123
+```
+
+### Staging Environment
+
+```bash
+# .env.staging
+HOST_PAGE=https://staging.contalink.com
+API_TEST=https://api-staging.contalink.com
+QA_PASSWORD=staging_secure_token_xyz
+```
+
+### Production Testing
+
+```bash
+# .env.production
+HOST_PAGE=https://app.contalink.com
+API_TEST=https://api.contalink.com
+QA_PASSWORD=prod_readonly_token_abc
+```
+
+<Warning>
+Use read-only or limited-permission accounts when testing against production environments.
+</Warning>
+
+## Loading Environment Variables
+
+The framework loads environment variables through multiple mechanisms:
+
+### 1. Playwright Configuration
+
+Automatic loading via dotenv in `playwright.config.ts`:
+
+```typescript
+// playwright.config.ts:2-6
+import * as dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+```
+
+### 2. Step Definitions
+
+Import at the top of step files:
+
+```typescript
+// loginSteps.ts:1
+import 'dotenv/config';
+```
+
+### 3. K6 Performance Tests
+
+Use dotenv-cli wrapper in package.json:
+
+```json
+// package.json:13
+"test:performance": "dotenv -- k6 run tests/performance/performanceTest.js"
+```
+
+### 4. Accessing in K6
+
+K6 uses `__ENV` object:
+
+```javascript
+// performanceTest.js:5-6
+const url_api = __ENV.HOST_PAGE;
+const token = __ENV.QA_PASSWORD;
+```
+
+## CI/CD Configuration
+
+### GitHub Actions
+
+Set environment variables as repository secrets:
+
+```yaml
+# .github/workflows/playwright.yml
+env:
+  HOST_PAGE: ${{ secrets.HOST_PAGE }}
+  QA_PASSWORD: ${{ secrets.QA_PASSWORD }}
+  API_TEST: ${{ secrets.API_TEST }}
+```
+
+**Steps:**
+1. Go to Repository Settings → Secrets and variables → Actions
+2. Click "New repository secret"
+3. Add each variable name and value
+4. Reference in workflow files using `${{ secrets.VARIABLE_NAME }}`
+
+### GitLab CI
+
+```yaml
+# .gitlab-ci.yml
+variables:
+  HOST_PAGE: "https://staging.contalink.com"
+  API_TEST: "https://api-staging.contalink.com"
+  QA_PASSWORD: "$QA_PASSWORD_SECRET"  # From CI/CD variables
+```
+
+### Jenkins
+
+```groovy
+environment {
+    HOST_PAGE = credentials('host-page-url')
+    QA_PASSWORD = credentials('qa-password-token')
+    API_TEST = credentials('api-test-url')
+}
+```
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Never Commit .env" icon="ban">
+    Always add `.env` to `.gitignore` before committing any code
+  </Card>
+  <Card title="Use Strong Tokens" icon="shield">
+    Generate secure, random tokens for authentication credentials
+  </Card>
+  <Card title="Rotate Regularly" icon="arrows-rotate">
+    Change passwords and tokens periodically, especially after team changes
+  </Card>
+  <Card title="Limit Permissions" icon="lock">
+    Use test accounts with minimal required permissions
+  </Card>
+  <Card title="Separate Environments" icon="layer-group">
+    Maintain different credentials for dev, staging, and production
+  </Card>
+  <Card title="Encrypt in CI/CD" icon="key">
+    Store secrets encrypted in CI/CD platforms, never in plain text
+  </Card>
+</CardGroup>
+
+## Validation and Type Safety
+
+Add environment variable validation in your code:
+
+```typescript
+// Example validation
+function validateEnv() {
+  const required = ['HOST_PAGE', 'QA_PASSWORD', 'API_TEST'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+}
+
+// Call before test execution
+validateEnv();
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Environment variables not loading">
+    **Symptoms:** Tests fail with "undefined" errors for environment variables
+    
+    **Solutions:**
+    - Verify `.env` file exists in project root
+    - Check file name is exactly `.env` (not `.env.txt`)
+    - Ensure dotenv is imported in your test files
+    - Restart your IDE/terminal after creating `.env`
+    - Check for typos in variable names
+  </Accordion>
+  
+  <Accordion title="Authentication failures">
+    **Symptoms:** Tests fail with 401 Unauthorized errors
+    
+    **Solutions:**
+    - Verify `QA_PASSWORD` is correct and not expired
+    - Check if token format is correct (e.g., "Bearer token" vs "token")
+    - Ensure test account has not been disabled
+    - Verify network access to API endpoints
+  </Accordion>
+  
+  <Accordion title="Wrong environment targeted">
+    **Symptoms:** Tests run against wrong environment
+    
+    **Solutions:**
+    - Double-check `HOST_PAGE` and `API_TEST` URLs
+    - Verify no cached environment variables from previous runs
+    - Ensure CI/CD secrets are correctly configured
+    - Check for multiple `.env` files (use only one)
+  </Accordion>
+  
+  <Accordion title="K6 can't access variables">
+    **Symptoms:** Performance tests fail with missing `__ENV` values
+    
+    **Solutions:**
+    - Ensure using `dotenv-cli` wrapper: `dotenv -- k6 run ...`
+    - Verify `dotenv-cli` is installed: `npm install dotenv-cli`
+    - Check K6 accesses variables via `__ENV.VARIABLE_NAME`
+    - Try setting environment variables directly: `HOST_PAGE=url k6 run ...`
+  </Accordion>
+</AccordionGroup>
+
+## Optional Variables
+
+You can extend the framework with additional environment variables:
+
+```bash
+# Optional configuration
+BROWSER=chromium          # Override default browser
+HEADLESS=true            # Run tests in headless mode
+TIMEOUT=30000            # Default timeout in milliseconds
+RETRIES=2                # Number of retries for failed tests
+LOG_LEVEL=info           # Logging verbosity
+REPORT_PATH=./reports    # Custom report output path
+```
+
+Access in your code:
+
+```typescript
+const browser = process.env.BROWSER || 'chromium';
+const headless = process.env.HEADLESS === 'true';
+const timeout = parseInt(process.env.TIMEOUT || '30000');
+```
+
+## Example .env File
+
+Here's a complete example `.env` file:
+
+```bash
+# ======================
+# Contalink Test Framework
+# Environment Configuration
+# ======================
+
+# Application URL (required)
+# URL of the application under test
+HOST_PAGE=https://staging.contalink.com
+
+# API Endpoint (required)
+# Base URL for backend API testing
+API_TEST=https://api-staging.contalink.com
+
+# Authentication (required)
+# Access token or password for test account
+QA_PASSWORD=qa_test_token_2024_secure
+
+# Optional: Browser Configuration
+# BROWSER=chromium
+# HEADLESS=false
+
+# Optional: Test Configuration
+# TIMEOUT=30000
+# RETRIES=2
+
+# ======================
+# Notes:
+# - Never commit this file to version control
+# - Rotate credentials regularly
+# - Use different credentials per environment
+# ======================
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Commands" icon="terminal" href="/reference/commands">
+    Learn how to run tests using npm scripts
+  </Card>
+  <Card title="Project Structure" icon="folder-tree" href="/reference/project-structure">
+    Understand how environment variables are used throughout the project
+  </Card>
+</CardGroup>

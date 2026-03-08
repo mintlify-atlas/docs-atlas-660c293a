@@ -1,0 +1,222 @@
+---
+title: Installation
+description: Step-by-step guide to install and set up the Contalink Test Framework with all required dependencies
+---
+
+## Prerequisites
+
+Before installing the Contalink Test Framework, ensure you have the following:
+
+<Note>
+  **Node.js**: Version 18.x or higher is recommended. Check your version with `node --version`
+</Note>
+
+The framework requires the following technologies:
+- **Node.js and npm** - Package manager for dependencies
+- **Git** - Version control (optional but recommended)
+- **Terminal/Command Line** access
+
+## Installation Steps
+
+<Steps>
+  <Step title="Install Dependencies">
+    Navigate to your project directory and install all required packages:
+    
+    ```bash
+    npm install
+    ```
+    
+    This will install all dependencies defined in `package.json`:
+    
+    <CodeGroup>
+    ```json package.json
+    {
+      "devDependencies": {
+        "@cucumber/cucumber": "^12.6.0",
+        "@playwright/test": "^1.58.1",
+        "@types/node": "^25.2.0",
+        "cucumber-html-reporter": "^7.2.0",
+        "dotenv": "^17.2.4",
+        "dotenv-cli": "^11.0.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+      }
+    }
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Install Playwright Browsers">
+    After installing npm packages, install the required browser binaries:
+    
+    ```bash
+    npx playwright install
+    ```
+    
+    This command downloads Chromium, Firefox, and WebKit browsers used by Playwright.
+    
+    <Info>
+      If you only need specific browsers, you can install them individually:
+      ```bash
+      npx playwright install chromium
+      npx playwright install firefox
+      npx playwright install webkit
+      ```
+    </Info>
+  </Step>
+  
+  <Step title="Install K6 (Performance Testing)">
+    K6 must be installed separately as it's not an npm package. Installation varies by operating system:
+    
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew install k6
+    ```
+    
+    ```bash Linux (Debian/Ubuntu)
+    sudo gpg -k
+    sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+    echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+    sudo apt-get update
+    sudo apt-get install k6
+    ```
+    
+    ```bash Windows (Chocolatey)
+    choco install k6
+    ```
+    
+    ```bash Windows (PowerShell)
+    winget install k6 --source winget
+    ```
+    </CodeGroup>
+    
+    Verify K6 installation:
+    ```bash
+    k6 version
+    ```
+  </Step>
+  
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in your project root with the required configuration:
+    
+    ```bash
+    touch .env
+    ```
+    
+    See the [Configuration](/configuration) page for detailed environment setup.
+  </Step>
+</Steps>
+
+## Verify Installation
+
+After completing the installation, verify everything is set up correctly:
+
+<Steps>
+  <Step title="Check Node and npm versions">
+    ```bash
+    node --version
+    npm --version
+    ```
+  </Step>
+  
+  <Step title="Verify Playwright installation">
+    ```bash
+    npx playwright --version
+    ```
+    
+    Expected output: `Version 1.58.1` (or your installed version)
+  </Step>
+  
+  <Step title="Verify K6 installation">
+    ```bash
+    k6 version
+    ```
+  </Step>
+  
+  <Step title="Verify TypeScript compilation">
+    ```bash
+    npx tsc --version
+    ```
+    
+    Expected output: `Version 5.9.3` (or your installed version)
+  </Step>
+</Steps>
+
+## Project Structure
+
+After installation, your project should have the following structure:
+
+```
+.
+├── node_modules/          # Installed dependencies
+├── tests/
+│   ├── features/          # Cucumber feature files
+│   ├── steps/             # Step definitions
+│   ├── pages/             # Page Object Models
+│   └── performance/       # K6 performance tests
+├── test-results/          # Generated after test runs
+├── package.json           # Project dependencies
+├── playwright.config.ts   # Playwright configuration
+├── tsconfig.json          # TypeScript configuration
+├── cucumber-report-generator.js  # Report generation
+└── .env                   # Environment variables (create this)
+```
+
+## Troubleshooting
+
+<Warning>
+  **Common Issues**
+</Warning>
+
+### Playwright Browser Installation Fails
+
+If browser installation fails, try:
+```bash
+npx playwright install --with-deps
+```
+
+This installs system dependencies required by browsers.
+
+### TypeScript Compilation Errors
+
+Ensure your `tsconfig.json` is properly configured:
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+### K6 Not Found
+
+If K6 commands fail, ensure it's in your system PATH:
+- **macOS/Linux**: Add to `~/.bashrc` or `~/.zshrc`
+- **Windows**: Add K6 installation directory to system PATH
+
+### Permission Denied Errors
+
+On Linux/macOS, you may need to use `sudo` for global installations or fix npm permissions:
+```bash
+mkdir ~/.npm-global
+npm config set prefix '~/.npm-global'
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.profile
+source ~/.profile
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Configure environment variables and Playwright settings
+  </Card>
+  
+  <Card title="Writing Tests" icon="code" href="/e2e/writing-tests">
+    Learn how to write your first test with Cucumber and Playwright
+  </Card>
+</CardGroup>

@@ -1,0 +1,155 @@
+---
+title: Introduction
+description: Learn about the Contalink Test Framework - a comprehensive testing solution combining Playwright, Cucumber BDD, and K6 for E2E and performance testing
+---
+
+## What is Contalink Test Framework?
+
+Contalink Test Framework is a powerful, integrated testing solution that combines three industry-leading tools to provide comprehensive test coverage for web applications:
+
+- **Playwright** - Modern browser automation for reliable E2E testing
+- **Cucumber BDD** - Behavior-driven development with Gherkin syntax for readable test scenarios
+- **K6** - High-performance load testing for API performance validation
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="BDD Testing" icon="check-circle">
+    Write tests in plain language using Gherkin syntax with Cucumber, making tests readable by both technical and non-technical stakeholders.
+  </Card>
+  
+  <Card title="Cross-Browser Support" icon="browser">
+    Execute tests across Chromium, Firefox, and WebKit browsers using Playwright's robust automation capabilities.
+  </Card>
+  
+  <Card title="Performance Testing" icon="gauge">
+    Validate API performance under load with K6, supporting up to 50 concurrent virtual users with configurable arrival rates.
+  </Card>
+  
+  <Card title="Page Object Pattern" icon="layer-group">
+    Maintainable test architecture with page objects extending a BasePage class for reusable commands and clean test code.
+  </Card>
+</CardGroup>
+
+## Why Use This Framework?
+
+<Info>
+  This framework is ideal for teams that need to:
+  - Write clear, maintainable tests that serve as living documentation
+  - Test across multiple browsers and devices
+  - Validate both functionality and performance
+  - Integrate testing into CI/CD pipelines
+</Info>
+
+## Architecture Overview
+
+The framework follows a layered architecture for maximum maintainability:
+
+```
+tests/
+├── features/          # Cucumber feature files (.feature)
+│   ├── login.feature
+│   ├── invoices.feature
+│   └── backTest.feature
+├── steps/             # Step definitions (TypeScript)
+│   ├── Hooks.ts       # Test lifecycle hooks
+│   ├── loginSteps.ts
+│   └── invoicesSteps.ts
+├── pages/             # Page Object Models
+│   ├── BasePage.ts    # Base page with reusable methods
+│   ├── LoginPage.ts
+│   └── invoicesPage.ts
+└── performance/       # K6 performance tests
+    └── performanceTest.js
+```
+
+### Component Breakdown
+
+**Feature Files**: Written in Gherkin syntax, these files describe test scenarios in plain English (or Spanish), making them accessible to all team members.
+
+```gherkin
+@login
+Feature: Login
+  
+  Scenario: Realizo un login correctamente 
+    Given  que estoy en la página de login
+    When   ingreso la contraseña correcta 
+    Then   valido que se redirige a la página principal
+```
+
+**Step Definitions**: TypeScript files that implement the steps defined in feature files, connecting Gherkin to Playwright automation code.
+
+```typescript
+import { Given, When, Then } from '@cucumber/cucumber';
+import { page } from './Hooks';
+import { LoginPage } from '../pages/LoginPage';
+
+Given('que estoy en la página de login', async function () {
+  loginPage = new LoginPage(page);
+  const hostPage = process.env.HOST_PAGE;
+  await loginPage.navigateTo(hostPage as string);
+});
+```
+
+**Page Objects**: Encapsulate page-specific logic and selectors, extending BasePage for common functionality.
+
+```typescript
+export class BasePage {
+  protected page: Page;
+  
+  async fill(selector: string, text: string): Promise<void> {
+    await this.page.fill(selector, text);
+  }
+  
+  async click(selector: string): Promise<void> {
+    await this.page.click(selector);
+  }
+}
+```
+
+**Performance Tests**: K6 scripts for load testing APIs with configurable scenarios.
+
+```javascript
+export const options = {
+  scenarios: {
+    constant_request_rate: {
+      executor: 'constant-arrival-rate',
+      rate: 20,              // 20 requests per second
+      timeUnit: '1s',
+      duration: '30s',
+      preAllocatedVUs: 10,
+      maxVUs: 50,
+    },
+  },
+};
+```
+
+## Test Execution Flow
+
+<Steps>
+  <Step title="BeforeAll Hook">
+    Launches the browser instance (Chromium by default in headless mode)
+  </Step>
+  
+  <Step title="Before Each Scenario">
+    Creates a new browser context and page for test isolation
+  </Step>
+  
+  <Step title="Execute Scenario Steps">
+    Runs Given/When/Then steps defined in the feature file
+  </Step>
+  
+  <Step title="After Each Scenario">
+    Closes the page to clean up session data
+  </Step>
+  
+  <Step title="AfterAll Hook">
+    Closes the browser instance
+  </Step>
+</Steps>
+
+## What's Next?
+
+<Card title="Get Started" icon="rocket" href="/installation">
+  Follow the installation guide to set up the Contalink Test Framework in your project
+</Card>

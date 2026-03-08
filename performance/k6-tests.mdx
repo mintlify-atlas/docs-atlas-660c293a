@@ -1,0 +1,339 @@
+---
+title: K6 Performance Tests
+description: Detailed guide to running and interpreting K6 performance tests
+---
+
+## Test Structure
+
+The K6 performance test is located at `tests/performance/performanceTest.js` and follows K6's standard structure:
+
+1. **Imports**: Load K6 modules
+2. **Configuration**: Define test scenarios and parameters
+3. **Test function**: The main function executed by virtual users
+4. **Checks**: Validations to verify performance criteria
+
+## Environment Configuration
+
+The test uses environment variables for configuration:
+
+```javascript
+const url_api = __ENV.HOST_PAGE
+const token = __ENV.QA_PASSWORD
+```
+
+- **HOST_PAGE**: The base URL of the API being tested
+- **QA_PASSWORD**: Authorization token for authenticated requests
+
+These variables are loaded from your `.env` file when running tests.
+
+## Test Scenario: Constant Arrival Rate
+
+The test implements a constant-arrival-rate scenario, which maintains a steady request rate regardless of system performance:
+
+```javascript
+export const options = {
+  scenarios: {
+    constant_request_rate: {
+      executor: 'constant-arrival-rate',
+      rate: 20,              // 20 solicitudes...
+      timeUnit: '1s',        // ...por cada segundo (RPS)
+      duration: '30s',       // Durante 30 segundos
+      preAllocatedVUs: 10,   // Usuarios virtuales iniciales
+      maxVUs: 50,            // Máximo de usuarios si el sistema tarda en responder
+    },
+  },
+};
+```
+
+### Configuration Parameters
+
+<ParamField path="executor" type="string" default="constant-arrival-rate">
+  The execution pattern - maintains a constant rate of iterations
+</ParamField>
+
+<ParamField path="rate" type="number" default="20">
+  Number of requests to send per time unit (20 requests per second)
+</ParamField>
+
+<ParamField path="timeUnit" type="string" default="1s">
+  Time window for the rate - typically '1s' for requests per second
+</ParamField>
+
+<ParamField path="duration" type="string" default="30s">
+  Total test duration - how long to maintain the constant rate
+</ParamField>
+
+<ParamField path="preAllocatedVUs" type="number" default="10">
+  Initial number of virtual users allocated at test start
+</ParamField>
+
+<ParamField path="maxVUs" type="number" default="50">
+  Maximum virtual users K6 can spin up if response times increase
+</ParamField>
+
+### How It Works
+
+The constant-arrival-rate executor ensures exactly 20 requests start every second:
+
+- If responses are fast, fewer VUs are needed
+- If responses slow down, K6 adds more VUs (up to maxVUs) to maintain the rate
+- This simulates realistic load where users arrive at a steady pace
+- The test runs for 30 seconds, generating approximately 600 total requests
+
+## Test Function
+
+The main test function executes for each virtual user iteration:
+
+```javascript
+export default function () {
+  // Sustituyo la URL por la de tu API
+  const url = `${url_api}/V1/invoices?page=1`;
+  
+  const params = {
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+      // Agrego mis headers, token de autenticación si son necesarios
+    },
+  };
+
+  const res = http.get(url, params);
+
+  // Validación básica del estado 200
+  check(res, {
+    'status es 200': (r) => r.status === 200,
+    'tiempo de respuesta < 500ms': (r) => r.timings.duration < 500,
+  });
+}
+```
+
+### What the Test Does
+
+1. **Constructs URL**: Targets the `/V1/invoices?page=1` endpoint
+2. **Sets headers**: Includes authorization token and content type
+3. **Sends GET request**: Retrieves the first page of invoices
+4. **Validates response**: Checks status code and response time
+
+### Performance Checks
+
+The test includes two critical validations:
+
+<AccordionGroup>
+  <Accordion title="Status Code Check">
+    ```javascript
+    'status es 200': (r) => r.status === 200
+    ```
+    
+    Verifies that the API returns a successful HTTP 200 response. Failed checks indicate:
+    - Authentication failures (401/403)
+    - Server errors (500+)
+    - Not found errors (404)
+  </Accordion>
+
+  <Accordion title="Response Time Check">
+    ```javascript
+    'tiempo de respuesta < 500ms': (r) => r.timings.duration < 500
+    ```
+    
+    Ensures responses complete within 500ms. This represents the SLA requirement. Violations indicate:
+    - Database query performance issues
+    - Resource contention under load
+    - Network latency problems
+  </Accordion>
+</AccordionGroup>
+
+## Running the Tests
+
+Execute performance tests using the npm script:
+
+```bash
+npm run test:performance
+```
+
+This command runs:
+
+```bash
+dotenv -- k6 run tests/performance/performanceTest.js
+```
+
+The `dotenv` wrapper loads environment variables from your `.env` file before executing K6.
+
+### Prerequisites
+
+<Steps>
+  <Step title="Install K6">
+    Ensure K6 is installed on your system:
+    
+    ```bash
+    # macOS
+    brew install k6
+    
+    # Windows
+    choco install k6
+    
+    # Linux
+    sudo gpg -k
+    sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+    echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+    sudo apt-get update
+    sudo apt-get install k6
+    ```
+  </Step>
+  
+  <Step title="Configure Environment">
+    Set up your `.env` file with required variables:
+    
+    ```bash
+    HOST_PAGE=https://your-api-domain.com
+    QA_PASSWORD=Bearer your-auth-token
+    ```
+  </Step>
+  
+  <Step title="Run the Test">
+    Execute the performance test:
+    
+    ```bash
+    npm run test:performance
+    ```
+  </Step>
+</Steps>
+
+## Understanding Results
+
+K6 outputs detailed metrics during and after test execution:
+
+### Console Output
+
+During the test, you'll see real-time metrics:
+
+```
+     ✓ status es 200
+     ✓ tiempo de respuesta < 500ms
+
+     checks.........................: 100.00% ✓ 1200      ✗ 0
+     data_received..................: 2.4 MB  80 kB/s
+     data_sent......................: 120 kB  4.0 kB/s
+     http_req_blocked...............: avg=1.2ms    min=0s     med=0s      max=50ms   p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=800µs    min=0s     med=0s      max=30ms   p(90)=0s      p(95)=0s
+     http_req_duration..............: avg=245ms    min=120ms  med=230ms   max=480ms  p(90)=350ms   p(95)=390ms
+       { expected_response:true }...: avg=245ms    min=120ms  med=230ms   max=480ms  p(90)=350ms   p(95)=390ms
+     http_req_failed................: 0.00%   ✓ 0         ✗ 600
+     http_req_receiving.............: avg=2ms      min=500µs  med=1.5ms   max=10ms   p(90)=3ms     p(95)=4ms
+     http_req_sending...............: avg=500µs    min=100µs  med=400µs   max=2ms    p(90)=800µs   p(95)=1ms
+     http_req_tls_handshaking.......: avg=0s       min=0s     med=0s      max=0s     p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=242.5ms  min=119ms  med=228ms   max=478ms  p(90)=348ms   p(95)=388ms
+     http_reqs......................: 600     20/s
+     iteration_duration.............: avg=246ms    min=121ms  med=231ms   max=481ms  p(90)=351ms   p(95)=391ms
+     iterations.....................: 600     20/s
+     vus............................: 1       min=1       max=15
+     vus_max........................: 50      min=50      max=50
+```
+
+### Key Metrics to Monitor
+
+<ResponseField name="checks" type="percentage">
+  Percentage of successful validations - should be 100%. Lower values indicate failures.
+</ResponseField>
+
+<ResponseField name="http_req_duration" type="time">
+  Total request time including sending, waiting, and receiving. Key percentiles:
+  - **avg**: Average response time
+  - **p(90)**: 90th percentile - 90% of requests faster than this
+  - **p(95)**: 95th percentile - SLA threshold
+  - **max**: Slowest request
+</ResponseField>
+
+<ResponseField name="http_req_failed" type="percentage">
+  Percentage of failed HTTP requests. Should be 0% for healthy systems.
+</ResponseField>
+
+<ResponseField name="http_reqs" type="count">
+  Total requests and throughput (requests/second). Should match target rate.
+</ResponseField>
+
+<ResponseField name="vus" type="count">
+  Active virtual users during test. Shows how many concurrent users were needed to maintain the rate.
+</ResponseField>
+
+## Interpreting Performance
+
+### Healthy Results ✓
+
+- **Checks**: 100% pass rate
+- **http_req_duration p(95)**: < 500ms (meets SLA)
+- **http_req_failed**: 0%
+- **vus**: Low and stable (system handles load efficiently)
+
+### Warning Signs ⚠️
+
+- **Checks**: < 100% (some requests failing SLA)
+- **http_req_duration**: Increasing over time
+- **vus**: Approaching maxVUs (system struggling to keep up)
+
+### Critical Issues ✗
+
+- **http_req_failed**: > 0% (errors occurring)
+- **http_req_duration p(95)**: > 500ms (SLA violations)
+- **vus**: Hitting maxVUs limit (cannot maintain target rate)
+
+<Warning>
+If the test hits `maxVUs` (50 virtual users) and still cannot maintain 20 RPS, the system cannot handle the target load. This indicates a serious performance bottleneck.
+</Warning>
+
+## Customizing the Test
+
+Modify test parameters to match your needs:
+
+### Increase Load
+
+```javascript
+rate: 50,              // 50 requests per second
+maxVUs: 100,           // Allow more concurrent users
+```
+
+### Longer Duration
+
+```javascript
+duration: '5m',        // 5 minute sustained test
+```
+
+### Different Endpoint
+
+```javascript
+const url = `${url_api}/V1/customers?page=1`;
+```
+
+### Additional Checks
+
+```javascript
+check(res, {
+  'status es 200': (r) => r.status === 200,
+  'tiempo de respuesta < 500ms': (r) => r.timings.duration < 500,
+  'body contiene datos': (r) => r.json().data !== undefined,
+  'respuesta no vacía': (r) => r.json().data.length > 0,
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Isolated Environment" icon="server">
+    Run tests against dedicated test environments to avoid impacting production
+  </Card>
+  
+  <Card title="Consistent Baseline" icon="chart-line">
+    Use the same test parameters across runs to detect performance regressions
+  </Card>
+  
+  <Card title="Realistic Data" icon="database">
+    Ensure test environment has production-like data volumes
+  </Card>
+  
+  <Card title="Monitor Resources" icon="gauge">
+    Track server CPU, memory, and database metrics during tests
+  </Card>
+</CardGroup>
+
+<Tip>
+Establish performance baselines by running tests regularly and tracking trends over time. This helps identify gradual degradation before it impacts users.
+</Tip>

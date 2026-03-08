@@ -1,97 +1,78 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Welcome to Contalink Test Framework"
+description: "Comprehensive end-to-end testing framework using Playwright, Cucumber BDD, and K6 for automated testing"
 ---
 
-## Setting up
+# Contalink Test Framework
 
-Get your documentation site up and running in minutes.
+A robust test automation framework combining Playwright for E2E testing, Cucumber for BDD-style tests, and K6 for performance testing.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## Key Features
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="BDD Testing" icon="file-lines" href="/e2e/gherkin-features">
+    Write human-readable tests using Cucumber and Gherkin syntax
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Page Object Model" icon="layer-group" href="/e2e/page-object-model">
+    Maintainable test architecture with reusable page objects
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="API Testing" icon="code" href="/api/overview">
+    Comprehensive backend and API testing with Playwright
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Performance Testing" icon="gauge-high" href="/performance/overview">
+    Load and performance testing with K6
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Get Started
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="Installation">
+    Install dependencies and set up your testing environment
+    
+    ```bash npm
+    npm install
+    ```
+    
+    [View full installation guide →](/installation)
+  </Step>
+  
+  <Step title="Configuration">
+    Configure environment variables and test settings
+    
+    [Learn about configuration →](/configuration)
+  </Step>
+  
+  <Step title="Run Tests">
+    Execute your first test suite
+    
+    ```bash
+    npm test
+    ```
+    
+    [Explore test commands →](/reference/commands)
+  </Step>
+</Steps>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Testing Capabilities
 
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={3}>
+  <Card title="E2E Testing" icon="browser" href="/e2e/overview">
+    Browser automation with Playwright
+  </Card>
+  <Card title="API Testing" icon="server" href="/api/backend-tests">
+    Backend and REST API validation
+  </Card>
+  <Card title="Performance" icon="chart-line" href="/performance/k6-tests">
+    Load testing and metrics
+  </Card>
+  <Card title="CI/CD Integration" icon="circle-check" href="/cicd/github-actions">
+    Automated testing in GitHub Actions
+  </Card>
+  <Card title="HTML Reports" icon="file-chart-column" href="/cicd/reports">
+    Beautiful test reports
+  </Card>
+  <Card title="Multi-browser" icon="window-restore" href="/e2e/overview">
+    Chrome, Firefox, and WebKit support
+  </Card>
+</CardGroup>

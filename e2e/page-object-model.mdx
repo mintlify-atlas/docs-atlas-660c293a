@@ -1,0 +1,471 @@
+---
+title: Page Object Model
+description: Implementing the Page Object Model pattern for maintainable E2E tests
+---
+
+## What is the Page Object Model?
+
+The Page Object Model (POM) is a design pattern that creates an object-oriented abstraction of web pages. Each page or component of your application is represented by a class that encapsulates the page's structure and behavior.
+
+### Benefits of POM
+
+- **Maintainability**: UI changes require updates in only one place
+- **Reusability**: Page methods can be used across multiple tests
+- **Readability**: Tests read like business workflows rather than technical scripts
+- **Separation of Concerns**: Test logic is separated from page implementation details
+
+## BasePage Class
+
+The `BasePage` class serves as the foundation for all page objects, providing common functionality that every page needs.
+
+### Location
+
+`tests/pages/BasePage.ts`
+
+### Implementation
+
+```typescript
+import { Page } from '@playwright/test';
+
+export class BasePage {
+  protected page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
+
+  // Navigate to a specific URL
+  async navigateTo(url: string): Promise<void> {
+    if (!this.page) {
+      throw new Error('Pagina no inicializada');
+    }
+    await this.page.goto(url);
+  }
+
+  // Ensure page is initialized before use
+  getPage(): Page {
+    if (!this.page) {
+      throw new Error('Pagina no inicializada');
+    }
+    return this.page;
+  }
+}
+```
+
+### Core Methods
+
+The BasePage provides essential methods that all page objects inherit:
+
+#### Navigation
+
+```typescript
+async navigateTo(url: string): Promise<void>
+```
+
+Navigates to the specified URL with built-in page initialization validation.
+
+**Example:**
+```typescript
+await loginPage.navigateTo('https://app.example.com/login');
+```
+
+#### Page Access
+
+```typescript
+getPage(): Page
+```
+
+Returns the Playwright Page instance with validation to ensure it's initialized.
+
+**Example:**
+```typescript
+const currentUrl = loginPage.getPage().url();
+```
+
+### Custom Commands
+
+BasePage includes custom commands that simplify common Playwright operations:
+
+#### Fill Text Field
+
+```typescript
+async fill(selector: string, text: string): Promise<void> {
+  await this.page.fill(selector, text);
+}
+```
+
+**Usage:**
+```typescript
+await this.fill('#username', 'testuser');
+```
+
+#### Click Element
+
+```typescript
+async click(selector: string): Promise<void> {
+  await this.page.click(selector);
+}
+```
+
+**Usage:**
+```typescript
+await this.click('button[type="submit"]');
+```
+
+#### Validate Text Content
+
+```typescript
+async expectText(selector: string, expectedText: string): Promise<void> {
+  const actualText = await this.page.textContent(selector);
+  if (actualText?.trim() !== expectedText) {
+    throw new Error(`Mensaje esperado"${expectedText}" Mensaje recivido "${actualText?.trim()}"`);
+  }
+}
+```
+
+**Usage:**
+```typescript
+await this.expectText('.success-message', 'Login successful');
+```
+
+#### Select Dropdown Option
+
+```typescript
+async selectOptions(selector: string, value: string): Promise<void> {
+  await this.page.selectOption(selector, value);
+}
+```
+
+**Usage:**
+```typescript
+await this.selectOptions('#country', 'USA');
+```
+
+#### Wait for Timeout
+
+```typescript
+async waitForTimeout(timeout: number): Promise<void> {
+  await this.page.waitForTimeout(timeout);
+}
+```
+
+**Usage:**
+```typescript
+await this.waitForTimeout(3000); // Wait 3 seconds
+```
+
+<Warning>
+  Use `waitForTimeout` sparingly. Prefer waiting for specific elements or conditions using Playwright's auto-waiting features.
+</Warning>
+
+## LoginPage Example
+
+The `LoginPage` class demonstrates how to extend BasePage for a specific page.
+
+### Location
+
+`tests/pages/LoginPage.ts`
+
+### Implementation
+
+```typescript
+import { BasePage } from "./BasePage";  
+
+export class LoginPage extends BasePage {
+  // Selectors
+  private passwordField = '#access-code';
+  private submitButton = 'button[type="submit"]';
+  private errorSelector = '.bg-red-100 > .block';
+
+  async navigateToLogin(hostPage: string): Promise<void> {
+    await this.navigateTo(hostPage);
+  }
+
+  async enterPassword(password: string): Promise<void> {
+    await this.fill(this.passwordField, password);
+  }
+
+  async clickSubmit(): Promise<void> {
+    await this.click(this.submitButton);
+  }
+
+  async validateErrorMessage(expectedMessage: string): Promise<void> {
+    await this.expectText(this.errorSelector, expectedMessage);
+  }
+
+  async loginWithPassword(): Promise<void> {
+    const hostPage = process.env.HOST_PAGE as string;
+    const password = process.env.QA_PASSWORD as string;
+    
+    await this.navigateTo(hostPage);
+    await this.fill(this.passwordField, password);
+    await this.clickSubmit();
+    
+    const expectedUrl = hostPage+'/' as string;
+    const currentUrl = this.getPage().url();
+    
+    if (currentUrl !== expectedUrl) {
+      throw new Error(`Redirección fallida. Se esperaba "${expectedUrl}" pero se obtuvo "${currentUrl}"`);
+    }
+  }
+}
+```
+
+### Key Features
+
+<Accordion title="Private Selectors">
+  Selectors are stored as private class properties, making them easy to update when the UI changes:
+
+  ```typescript
+  private passwordField = '#access-code';
+  private submitButton = 'button[type="submit"]';
+  ```
+</Accordion>
+
+<Accordion title="Action Methods">
+  Each user action is encapsulated in a descriptive method:
+
+  ```typescript
+  async enterPassword(password: string): Promise<void> {
+    await this.fill(this.passwordField, password);
+  }
+  ```
+</Accordion>
+
+<Accordion title="Validation Methods">
+  Validation logic is included in the page object:
+
+  ```typescript
+  async validateErrorMessage(expectedMessage: string): Promise<void> {
+    await this.expectText(this.errorSelector, expectedMessage);
+  }
+  ```
+</Accordion>
+
+<Accordion title="Complex Workflows">
+  Complete workflows combine multiple actions:
+
+  ```typescript
+  async loginWithPassword(): Promise<void> {
+    // Navigation + Fill + Click + Validation
+  }
+  ```
+</Accordion>
+
+## InvoicesPage Example
+
+The `InvoicesPage` demonstrates a more complex page object with multiple interactions.
+
+### Location
+
+`tests/pages/invoicesPage.ts`
+
+### Key Implementation Details
+
+```typescript
+import { BasePage } from "./BasePage";
+import { expect } from "@playwright/test";
+
+export class InvoicesPage extends BasePage {
+  // Button selectors
+  private createInvoiceButton = '.justify-between > .btn';
+  private saveButton = '.text-white > span';
+  private editButton = 'tbody > tr > :nth-child(6) > :nth-child(1) > :nth-child(1)';
+  private deleteButton = 'tbody > tr > :nth-child(6) > div > button:nth-child(2)';
+
+  // Form field selectors
+  private invoiceDateField = '[name="invoiceNumber"]';
+  private totalAmountField = '[name="total"]';
+  private invoiceStatusField = '[name="status"]';
+
+  // Filter selectors
+  private invoiceNumberFilterField = '#invoiceName';
+
+  async clickCreateInvoice(): Promise<void> {
+    await this.expectText(this.createInvoiceButton, 'Nueva Factura');
+    await this.click(this.createInvoiceButton);
+  }
+
+  async fillInvoiceForm(invoiceData: { [key: string]: string }): Promise<void> {
+    for (const [key, value] of Object.entries(invoiceData).slice(1)) {
+      switch (key) {
+        case 'Número':
+          await this.fill(this.invoiceDateField, value);
+          break;
+        case 'Monto':
+          await this.fill(this.totalAmountField, value);
+          break;
+        case 'Estado':
+          await this.selectOptions(this.invoiceStatusField, value);
+          break;
+        default:
+          throw new Error(`Campo no reconocido: ${key}`);
+      }
+    }
+  }
+
+  async validateInvoiceCreation(invoiceData: { [key: string]: string }): Promise<void> {
+    const invoiceNumber = invoiceData['Número'];
+    const totalAmount = invoiceData['Monto'];
+    const status = invoiceData['Estado'];
+
+    await this.expectText('tbody > :nth-child(1) > :nth-child(2)', invoiceNumber);
+    await this.expectText('tbody > :nth-child(1) > :nth-child(3)', totalAmount);
+    await this.expectText('tbody > :nth-child(1) > :nth-child(5)', status);
+  }
+}
+```
+
+### Advanced Patterns
+
+<CardGroup cols={2}>
+  <Card title="Data-Driven Forms" icon="table">
+    The `fillInvoiceForm` method accepts a data object and dynamically fills form fields based on the data structure.
+  </Card>
+  
+  <Card title="Action Abstraction" icon="wand-magic-sparkles">
+    The `optionInvoice` method uses a switch statement to handle different actions (Edit/Delete) on invoices.
+  </Card>
+  
+  <Card title="Search & Filter" icon="filter">
+    The `findInvoiceInListCreated` method encapsulates search functionality, combining fill and click actions.
+  </Card>
+  
+  <Card title="Validation Logic" icon="circle-check">
+    The `validateInvoiceCreation` method extracts data and validates multiple fields in a single call.
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+### 1. Use Private Selectors
+
+Store all selectors as private class properties:
+
+```typescript
+private submitButton = 'button[type="submit"]';
+private emailField = '#email';
+```
+
+### 2. Create Semantic Method Names
+
+Method names should describe what they do, not how:
+
+<CodeGroup>
+```typescript Good
+async submitLoginForm(): Promise<void>
+```
+
+```typescript Bad
+async clickButtonAndWait(): Promise<void>
+```
+</CodeGroup>
+
+### 3. Return Page Objects for Chaining
+
+For methods that navigate to other pages, return the new page object:
+
+```typescript
+async clickCreateInvoice(): Promise<InvoiceFormPage> {
+  await this.click(this.createButton);
+  return new InvoiceFormPage(this.page);
+}
+```
+
+### 4. Keep Assertions in Tests
+
+While validation methods are useful, keep test assertions in step definitions when possible:
+
+```typescript
+// In page object: return data
+async getInvoiceNumber(): Promise<string> {
+  return await this.page.textContent(this.invoiceNumberCell);
+}
+
+// In step definition: assert
+Then('the invoice number is {string}', async (expected: string) => {
+  const actual = await invoicesPage.getInvoiceNumber();
+  expect(actual).toBe(expected);
+});
+```
+
+### 5. Handle Waits Properly
+
+Let Playwright's auto-waiting handle most scenarios:
+
+<CodeGroup>
+```typescript Good
+await this.click(this.submitButton); // Playwright waits automatically
+```
+
+```typescript Avoid
+await this.waitForTimeout(2000);
+await this.click(this.submitButton);
+```
+</CodeGroup>
+
+### 6. Group Related Selectors
+
+Organize selectors by functionality:
+
+```typescript
+// Form fields
+private emailField = '#email';
+private passwordField = '#password';
+
+// Buttons
+private submitButton = 'button[type="submit"]';
+private cancelButton = '.cancel-btn';
+
+// Messages
+private errorMessage = '.error-message';
+private successMessage = '.success-message';
+```
+
+## Creating New Page Objects
+
+When creating a new page object:
+
+1. **Extend BasePage**: Always inherit from BasePage to get common functionality
+2. **Define selectors**: Add all selectors as private properties at the top of the class
+3. **Create action methods**: Methods that interact with the page (click, fill, select)
+4. **Create validation methods**: Methods that verify page state
+5. **Add workflow methods**: Combine multiple actions for common workflows
+
+### Template
+
+```typescript
+import { BasePage } from './BasePage';
+
+export class MyNewPage extends BasePage {
+  // Selectors
+  private mySelector = '.my-element';
+  
+  // Actions
+  async performAction(): Promise<void> {
+    await this.click(this.mySelector);
+  }
+  
+  // Validations
+  async validateState(expected: string): Promise<void> {
+    await this.expectText(this.mySelector, expected);
+  }
+  
+  // Workflows
+  async completeWorkflow(): Promise<void> {
+    await this.performAction();
+    await this.validateState('Complete');
+  }
+}
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Writing Tests" icon="code" href="/e2e/writing-tests">
+    Learn how to use page objects in your tests
+  </Card>
+  <Card title="Gherkin Features" icon="file-lines" href="/e2e/gherkin-features">
+    See how page objects integrate with step definitions
+  </Card>
+</CardGroup>

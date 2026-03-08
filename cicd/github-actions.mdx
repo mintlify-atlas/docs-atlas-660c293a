@@ -1,0 +1,244 @@
+---
+title: 'GitHub Actions Integration'
+description: 'Learn how to integrate Contalink Test Framework with GitHub Actions for continuous testing'
+icon: 'github'
+---
+
+## Overview
+
+The Contalink Test Framework includes a fully configured GitHub Actions workflow that automatically runs your Cucumber/Playwright tests on every push and pull request. This ensures code quality and catches regressions early in the development cycle.
+
+## Workflow Configuration
+
+The workflow is defined in `.github/workflows/playwright.yml` and runs on Ubuntu with the latest Node.js LTS version:
+
+```yaml
+name: Playwright Tests
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+```
+
+### Trigger Events
+
+The workflow automatically triggers on:
+- **Push events** to `main` or `master` branches
+- **Pull requests** targeting `main` or `master` branches
+
+<Tip>
+You can modify the trigger branches in the workflow file to match your branching strategy.
+</Tip>
+
+## Workflow Steps
+
+### 1. Repository Checkout
+
+```yaml
+- uses: actions/checkout@v4
+```
+
+Checks out your repository code so the workflow can access it.
+
+### 2. Node.js Setup
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: lts/*
+    cache: 'npm'
+```
+
+Installs Node.js LTS version with npm caching enabled for faster subsequent runs.
+
+### 3. Dependencies Installation
+
+```yaml
+- name: Install dependencies
+  run: npm ci
+```
+
+Installs project dependencies using `npm ci` for reproducible builds.
+
+### 4. Playwright Browsers
+
+```yaml
+- name: Install Playwright Browsers
+  run: npx playwright install --with-deps
+```
+
+Installs Chromium, Firefox, and WebKit browsers along with system dependencies required for running Playwright tests.
+
+### 5. Test Results Directory
+
+```yaml
+- name: Create test-results directory
+  run: mkdir -p test-results
+```
+
+Ensures the directory for test results and reports exists before test execution.
+
+### 6. Environment Configuration
+
+```yaml
+- name: Create .env file
+  run: |
+    echo "HOST_PAGE=${{ secrets.HOST_PAGE }}" > .env
+    echo "QA_PASSWORD=${{ secrets.QA_PASSWORD }}" >> .env
+    echo "API_TEST=${{ secrets.API_TEST }}" >> .env
+```
+
+Creates the `.env` file with secrets stored in GitHub repository settings.
+
+<Warning>
+Make sure to configure the following secrets in your GitHub repository settings:
+- `HOST_PAGE` - The base URL for your application
+- `QA_PASSWORD` - Test user password
+- `API_TEST` - API endpoint URL
+</Warning>
+
+### 7. Test Execution
+
+```yaml
+- name: Run Playwright Gherkin tests
+  run: npm test
+  env:
+    CI: true
+```
+
+Runs the test suite using the `npm test` script, which executes Cucumber tests and generates the HTML report.
+
+### 8. Report Upload
+
+```yaml
+- name: Upload Cucumber Report
+  uses: actions/upload-artifact@v4
+  if: always() 
+  with:
+    name: cucumber-report
+    path: test-results/
+    retention-days: 30
+```
+
+Uploads test results and HTML reports as artifacts, even if tests fail (due to `if: always()`). Reports are retained for 30 days.
+
+## Environment Variables in CI
+
+The workflow sets the `CI` environment variable to `true`, which can be used to adjust test behavior in CI environments:
+
+```typescript
+if (process.env.CI) {
+  // CI-specific configuration
+  // e.g., headless mode, different timeouts, etc.
+}
+```
+
+## Accessing Test Results
+
+After a workflow run completes:
+
+1. Navigate to the **Actions** tab in your GitHub repository
+2. Click on the workflow run
+3. Scroll to the **Artifacts** section
+4. Download the `cucumber-report` artifact
+5. Extract the ZIP file and open `test-results/index.html` in a browser
+
+<Card title="Learn More" icon="book" href="/cicd/reports">
+  Understand the structure and content of generated test reports
+</Card>
+
+## Timeout Configuration
+
+The workflow has a 60-minute timeout to prevent hung jobs:
+
+```yaml
+timeout-minutes: 60
+```
+
+Adjust this value based on your test suite size and execution time.
+
+## Troubleshooting
+
+### Tests Fail in CI but Pass Locally
+
+- Verify all required secrets are configured in GitHub
+- Check that the application URL in `HOST_PAGE` is accessible from GitHub Actions runners
+- Review environment-specific configurations
+
+### Browser Installation Fails
+
+- Ensure `npx playwright install --with-deps` includes the `--with-deps` flag
+- Check that the Ubuntu runner has sufficient disk space
+
+### Report Not Generated
+
+The report generator includes error handling. If the JSON file doesn't exist (tests failed before starting), a warning is logged:
+
+```javascript
+console.warn('⚠️ No se pudo generar el reporte: El archivo JSON no existe');
+```
+
+Check the workflow logs for this warning message.
+
+## Custom Workflows
+
+You can create additional workflows for specific scenarios:
+
+<CodeGroup>
+
+```yaml Schedule-based Testing
+name: Nightly Tests
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM daily
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Same steps as playwright.yml
+```
+
+```yaml Tag-based Testing
+name: Tagged Tests
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Cucumber tag to run'
+        required: true
+        default: '@smoke'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # ...
+      - name: Run Tagged Tests
+        run: npm run test -- --tags ${{ github.event.inputs.tag }}
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Secrets for Sensitive Data">
+    Never hardcode credentials or URLs in workflow files. Always use GitHub Secrets for sensitive information.
+  </Accordion>
+  
+  <Accordion title="Enable Artifact Uploads">
+    Always upload test results and reports using `if: always()` to ensure artifacts are available even when tests fail.
+  </Accordion>
+  
+  <Accordion title="Cache Dependencies">
+    Enable npm caching in the setup-node action to speed up workflow runs.
+  </Accordion>
+  
+  <Accordion title="Set Appropriate Timeouts">
+    Configure timeout-minutes to prevent hung jobs while allowing sufficient time for test execution.
+  </Accordion>
+</AccordionGroup>

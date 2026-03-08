@@ -1,0 +1,371 @@
+---
+title: 'Commands'
+description: 'Complete reference for all npm scripts and test commands in the Contalink Test Framework'
+icon: 'terminal'
+---
+
+## Overview
+
+The Contalink Test Framework provides a comprehensive set of npm scripts for running different types of tests. All commands are defined in `package.json` and can be executed using npm or yarn.
+
+## Running Tests
+
+### npm test
+
+Runs all Cucumber tests across all feature files and generates an HTML report.
+
+```bash
+npm test
+```
+
+**What it does:**
+1. Executes all feature files in `tests/features/`
+2. Requires TypeScript step definitions from `tests/steps/`
+3. Outputs JSON results to `test-results/cucumber-report.json`
+4. Automatically generates HTML report using cucumber-report-generator
+
+**Command breakdown:**
+```bash
+cucumber-js \
+  --require-module ts-node/register \
+  --require tests/steps/**/*.ts \
+  tests/features/**/*.feature \
+  --format json:test-results/cucumber-report.json \
+  && node cucumber-report-generator.js
+```
+
+<Tip>
+This is the recommended command for running complete test suites in CI/CD pipelines.
+</Tip>
+
+### npm run test:login
+
+Runs only login-related test scenarios.
+
+```bash
+npm run test:login
+```
+
+**Features tested:**
+- Login with invalid password
+- Login with correct credentials
+- Error message validation
+- Redirect validation after successful login
+
+**Tag filter:** `@login`
+
+**Source file:** `tests/features/login.feature`
+
+<Note>
+This command uses the `&` operator instead of `&&`, so the report generator runs in parallel with tests.
+</Note>
+
+### npm run test:invoiceSearch
+
+Runs invoice search functionality tests.
+
+```bash
+npm run test:invoiceSearch
+```
+
+**Features tested:**
+- Searching for invoices by number
+- Validating search results
+- Handling empty search results
+
+**Tag filter:** `@invoiceSearch`
+
+**Source file:** `tests/features/invoiceSearch.feature`
+
+### npm run test:invoiceCreation
+
+Runs complete invoice lifecycle tests including creation, editing, and deletion.
+
+```bash
+npm run test:invoiceCreation
+```
+
+**Features tested:**
+- Creating new invoices with data validation
+- Editing existing invoices
+- Deleting invoices with confirmation
+- Validating invoice data persistence
+
+**Scenarios:**
+1. **Invoice Creation** - Creates invoice #9999999 with $100.00 amount
+2. **Invoice Editing** - Updates invoice to $150.00 and "Pagado" status
+3. **Invoice Deletion** - Deletes invoice and validates removal
+
+**Tag filter:** `@invoices`
+
+**Source file:** `tests/features/invoices.feature`
+
+**Example test flow:**
+```gherkin
+Scenario: Creación de una factura
+  Given realizo un login para facturas
+  When  realizo la creación de una factura con los siguientes datos:
+    | Campo  | Valor   |
+    | Número | 9999999 |
+    | Monto  | 100.00  |
+    | Estado | Vigente |
+  Then valido que la creación de la factura con los datos ingresados
+```
+
+### npm run test:backTest
+
+Runs backend API tests for all CRUD operations.
+
+```bash
+npm run test:backTest
+```
+
+**Features tested:**
+- GET all invoices
+- GET specific invoice by number
+- POST create new invoice
+- PUT update entire invoice
+- PATCH partial invoice update
+- DELETE remove invoice
+- Authorization validation (401 errors)
+- Validation errors (422 errors)
+
+**API endpoints tested:**
+- `GET /V1/invoices` - List all invoices
+- `GET /V1/invoices?invoice_number={number}` - Search invoices
+- `POST /V1/invoices` - Create invoice
+- `PUT /V1/invoices/{id}` - Update invoice
+- `PATCH /V1/invoices/{id}` - Partial update
+- `DELETE /V1/invoices/{id}` - Delete invoice
+
+**Tag filter:** `@backTest`
+
+**Source file:** `tests/features/backTest.feature`
+
+<Warning>
+Backend tests require valid `API_TEST` and `QA_PASSWORD` environment variables to be set.
+</Warning>
+
+### npm run test:performance
+
+Runs K6 performance tests for load and stress testing.
+
+```bash
+npm run test:performance
+```
+
+**Test configuration:**
+- **Rate:** 20 requests per second (constant arrival rate)
+- **Duration:** 30 seconds
+- **Initial VUs:** 10 virtual users
+- **Max VUs:** 50 virtual users
+- **Target endpoint:** `GET /V1/invoices?page=1`
+
+**Performance checks:**
+```javascript
+check(res, {
+  'status es 200': (r) => r.status === 200,
+  'tiempo de respuesta < 500ms': (r) => r.timings.duration < 500,
+});
+```
+
+**Requirements:**
+- K6 must be installed globally or available in PATH
+- Environment variables loaded via dotenv-cli
+- Valid `HOST_PAGE` and `QA_PASSWORD` in .env file
+
+**Source file:** `tests/performance/performanceTest.js`
+
+<Tip>
+Performance tests help identify bottlenecks and ensure your API can handle expected load.
+</Tip>
+
+### npm run test:01
+
+Runs tests tagged with `@01` (custom tag for specific scenarios).
+
+```bash
+npm run test:01
+```
+
+**Tag filter:** `@01`
+
+**Usage:** Add `@01` tag to any scenario you want to run in isolation during development.
+
+### npm run report
+
+Generates HTML report from existing test results without running tests.
+
+```bash
+npm run report
+```
+
+**Requirements:**
+- Existing `test-results/cucumber-report.json` file
+
+**Output:**
+- `test-results/index.html` with formatted test results
+
+**Use cases:**
+- Regenerate report after manual edits
+- View results from previous test run
+- Customize report metadata
+
+**Report includes:**
+- Test execution summary
+- Pass/fail statistics
+- Scenario details with timestamps
+- Browser and platform information
+- App version metadata
+
+## Command Options
+
+### TypeScript Execution
+
+All Cucumber commands use `ts-node/register` to execute TypeScript files without pre-compilation.
+
+```bash
+--require-module ts-node/register
+```
+
+### Step Definition Loading
+
+Step definitions are loaded using glob patterns:
+
+```bash
+--require tests/steps/**/*.ts
+```
+
+### Feature File Selection
+
+Feature files can be specified individually or using glob patterns:
+
+```bash
+# All features
+tests/features/**/*.feature
+
+# Single feature
+tests/features/login.feature
+```
+
+### Tag Filtering
+
+Run specific scenarios using Cucumber tags:
+
+```bash
+--tags @login          # Run only @login scenarios
+--tags "@login or @invoices"  # Run multiple tags
+--tags "not @slow"     # Exclude scenarios
+```
+
+### Report Format
+
+JSON output format for report generation:
+
+```bash
+--format json:test-results/cucumber-report.json
+```
+
+## Environment Variables in Commands
+
+Commands automatically load environment variables through:
+
+1. **Playwright Config** - Loads `.env` via dotenv in `playwright.config.ts`
+2. **Step Definitions** - Import `dotenv/config` at the top of step files
+3. **Performance Tests** - Use `dotenv-cli` wrapper: `dotenv -- k6 run ...`
+
+## Parallel vs Sequential Execution
+
+### Sequential (`&&`)
+
+Used in `npm test` - Report generation waits for tests to complete:
+
+```bash
+cucumber-js ... && node cucumber-report-generator.js
+```
+
+### Parallel (`&`)
+
+Used in specific test commands - Report generation runs concurrently:
+
+```bash
+cucumber-js ... & node cucumber-report-generator.js
+```
+
+<Warning>
+Using `&` may cause report generation to run before tests complete. Use `&&` for reliable reporting.
+</Warning>
+
+## Exit Codes
+
+- **0** - All tests passed
+- **1** - One or more tests failed
+- **Non-zero** - Test execution error
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Development" icon="code">
+    Use specific test commands (`test:login`, `test:invoices`) for faster feedback during development
+  </Card>
+  <Card title="CI/CD" icon="pipe">
+    Use `npm test` in CI/CD pipelines to run complete test suite with proper report generation
+  </Card>
+  <Card title="Debugging" icon="bug">
+    Add `@01` tag to failing scenarios and run `npm run test:01` to isolate issues
+  </Card>
+  <Card title="Performance" icon="gauge">
+    Run `npm run test:performance` regularly to catch performance regressions early
+  </Card>
+</CardGroup>
+
+## Creating Custom Commands
+
+You can add custom test commands in `package.json`:
+
+```json
+{
+  "scripts": {
+    "test:smoke": "cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts tests/features/**/*.feature --tags @smoke"
+  }
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Tests fail to start">
+    - Verify environment variables are set in `.env`
+    - Check that all dependencies are installed: `npm install`
+    - Ensure TypeScript is compiled: `npx tsc --noEmit`
+  </Accordion>
+  
+  <Accordion title="Report not generated">
+    - Verify `test-results/cucumber-report.json` exists
+    - Check file permissions on `test-results/` directory
+    - Run `npm run report` manually to see error messages
+  </Accordion>
+  
+  <Accordion title="K6 performance tests fail">
+    - Install K6: `brew install k6` (macOS) or see [k6.io](https://k6.io/docs/getting-started/installation/)
+    - Verify API endpoint is accessible
+    - Check `HOST_PAGE` environment variable is correct
+  </Accordion>
+  
+  <Accordion title="Browser not launching">
+    - Install Playwright browsers: `npx playwright install`
+    - Check headless mode in `playwright.config.ts`
+    - Verify system has required browser dependencies
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="key" href="/reference/environment-variables">
+    Configure environment variables for your test environment
+  </Card>
+  <Card title="Project Structure" icon="folder-tree" href="/reference/project-structure">
+    Understand the project organization and file structure
+  </Card>
+</CardGroup>

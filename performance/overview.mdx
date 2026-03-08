@@ -1,0 +1,116 @@
+---
+title: Performance Testing Overview
+description: Learn about performance testing in the Contalink Test Framework using K6
+---
+
+## What is Performance Testing?
+
+Performance testing is a type of testing that evaluates how your application behaves under various load conditions. Unlike functional tests that verify correctness, performance tests measure:
+
+- **Response times**: How quickly the application responds to requests
+- **Throughput**: How many requests the system can handle per second
+- **Scalability**: How the system performs as load increases
+- **Reliability**: Whether the system maintains performance under sustained load
+
+The Contalink Test Framework includes performance tests to ensure the API can handle expected traffic volumes without degradation.
+
+## Why K6?
+
+The framework uses [K6](https://k6.io/) for performance testing because it offers:
+
+- **Developer-friendly**: Write tests in JavaScript with a simple, intuitive API
+- **Accurate load generation**: Precise control over request rates and virtual users
+- **Rich metrics**: Built-in collection of response times, error rates, and custom metrics
+- **Flexible scenarios**: Support for multiple execution patterns (constant rate, ramping, stress tests)
+- **CI/CD integration**: Easy to integrate into automated pipelines
+- **Lightweight**: Minimal resource overhead compared to other load testing tools
+
+## Metrics Collected
+
+K6 automatically collects several key metrics during test execution:
+
+### Built-in Metrics
+
+- **http_req_duration**: Total time for the request (includes all phases)
+- **http_req_waiting**: Time waiting for the server response (TTFB)
+- **http_req_connecting**: Time establishing TCP connection
+- **http_reqs**: Total number of HTTP requests
+- **http_req_failed**: Rate of failed requests
+- **vus**: Number of active virtual users
+- **iterations**: Number of test function executions
+
+### Custom Checks
+
+The Contalink performance tests include custom validations:
+
+```javascript
+check(res, {
+  'status es 200': (r) => r.status === 200,
+  'tiempo de respuesta < 500ms': (r) => r.timings.duration < 500,
+});
+```
+
+These checks verify that responses return successfully and meet performance SLAs.
+
+## Performance Testing Scenarios
+
+The framework currently implements a **constant arrival rate** scenario, which maintains a steady request rate regardless of response times. This is ideal for:
+
+- **Baseline performance measurement**: Establish normal operating characteristics
+- **SLA validation**: Verify the system meets response time requirements
+- **Capacity planning**: Determine maximum sustainable throughput
+- **Regression detection**: Identify performance degradation between releases
+
+### Constant Arrival Rate
+
+This scenario maintains a fixed number of requests per second (RPS) for a specified duration:
+
+- **Rate**: 20 requests per second
+- **Duration**: 30 seconds sustained load
+- **Pre-allocated VUs**: 10 virtual users ready at start
+- **Max VUs**: Up to 50 users if response times increase
+
+The executor automatically adjusts the number of virtual users to maintain the target rate, even if the system slows down.
+
+## When to Run Performance Tests
+
+Run performance tests in the following situations:
+
+### During Development
+
+- After implementing new API endpoints
+- When optimizing database queries or business logic
+- Before merging major feature branches
+
+### In CI/CD Pipelines
+
+- On dedicated performance testing environments
+- After deploying to staging environments
+- As part of release validation
+
+### Regular Monitoring
+
+- Weekly or nightly automated runs
+- To establish performance baselines
+- To detect gradual performance degradation
+
+### Before Production Releases
+
+- Final validation that SLAs are met
+- Verify system can handle expected traffic
+- Confirm no performance regressions
+
+<Note>
+Performance tests should run against dedicated test environments, not production systems, to avoid impacting real users.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="K6 Tests" icon="gauge-high" href="/performance/k6-tests">
+    Learn how to configure and run K6 performance tests
+  </Card>
+  <Card title="API Testing" icon="code" href="/api-testing/overview">
+    Understand API functional testing with Cucumber
+  </Card>
+</CardGroup>

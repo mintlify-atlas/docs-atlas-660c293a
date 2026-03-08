@@ -1,0 +1,364 @@
+---
+title: 'Test Reports'
+description: 'Learn how to generate, view, and interpret Cucumber HTML reports in Contalink Test Framework'
+icon: 'chart-bar'
+---
+
+## Overview
+
+The Contalink Test Framework automatically generates beautiful, interactive HTML reports for your Cucumber test executions. These reports provide detailed insights into test results, including pass/fail status, execution times, screenshots, and more.
+
+## Report Generator
+
+The framework includes a custom report generator script (`cucumber-report-generator.js`) that transforms Cucumber JSON output into a styled HTML report using the `cucumber-html-reporter` library.
+
+### Generator Script
+
+```javascript
+const reporter = require('cucumber-html-reporter');
+const fs = require('fs');
+const path = require('path');
+
+const jsonPath = path.join(__dirname, 'test-results/cucumber-report.json');
+const outputDir = path.join(__dirname, 'test-results');
+
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
+}
+
+if (fs.existsSync(jsonPath)) {
+  const options = {
+    theme: 'bootstrap',
+    jsonFile: jsonPath,
+    output: path.join(outputDir, 'index.html'),
+    reportSuiteAsScenarios: true,
+    scenarioTimestamp: true,
+    launchReport: false,
+    metadata: {
+      'App Version': '1.0.0',
+      'Test Environment': 'Development',
+      'Browser': 'Chromium',
+      'Platform': process.platform,
+      'Executed': 'GitHub Actions'
+    }
+  };
+
+  try {
+    reporter.generate(options);
+    console.log('✅ Reporte generado en: test-results/index.html');
+  } catch (err) {
+    console.error('❌ Error al generar el reporte:', err.message);
+  }
+} else {
+  console.warn('⚠️ No se pudo generar el reporte: El archivo JSON no existe');
+}
+```
+
+## Report Configuration
+
+### Theme and Styling
+
+```javascript
+theme: 'bootstrap'
+```
+
+The report uses the Bootstrap theme for a clean, responsive interface.
+
+### Report Options
+
+<ParamField path="reportSuiteAsScenarios" type="boolean" default="true">
+  Reports each scenario as a separate suite for better organization
+</ParamField>
+
+<ParamField path="scenarioTimestamp" type="boolean" default="true">
+  Includes execution timestamps for each scenario
+</ParamField>
+
+<ParamField path="launchReport" type="boolean" default="false">
+  Set to `false` to prevent auto-opening the report in CI environments
+</ParamField>
+
+### Report Metadata
+
+The report includes contextual metadata to help identify test execution details:
+
+```javascript
+metadata: {
+  'App Version': '1.0.0',
+  'Test Environment': 'Development',
+  'Browser': 'Chromium',
+  'Platform': process.platform,
+  'Executed': 'GitHub Actions'
+}
+```
+
+<Tip>
+Customize the metadata to include project-specific information like build numbers, git commit hashes, or test environment URLs.
+</Tip>
+
+## Generating Reports
+
+### Automatic Generation
+
+Reports are automatically generated when running tests:
+
+```bash
+npm test
+```
+
+The `test` script in `package.json` executes Cucumber tests and generates the report:
+
+```json
+"test": "cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts tests/features/**/*.feature --format json:test-results/cucumber-report.json && node cucumber-report-generator.js"
+```
+
+### Manual Report Generation
+
+If you have an existing JSON report, regenerate the HTML:
+
+```bash
+npm run report
+```
+
+This runs the generator script independently:
+
+```json
+"report": "node cucumber-report-generator.js"
+```
+
+<Note>
+The JSON file must exist at `test-results/cucumber-report.json` for manual generation to work.
+</Note>
+
+## Report Structure
+
+### Output Location
+
+Reports are generated in the `test-results/` directory:
+
+```
+test-results/
+├── cucumber-report.json    # Raw JSON output from Cucumber
+└── index.html              # Generated HTML report
+```
+
+### Report Sections
+
+The HTML report includes:
+
+1. **Summary Dashboard** - Overall pass/fail statistics and execution time
+2. **Feature List** - All features with their scenarios and status
+3. **Scenario Details** - Step-by-step execution results
+4. **Metadata Panel** - Environment and execution information
+5. **Timestamps** - When each scenario executed
+
+## Viewing Reports
+
+### Local Viewing
+
+After running tests, open the report in your browser:
+
+```bash
+open test-results/index.html
+```
+
+Or on Linux:
+
+```bash
+xdg-open test-results/index.html
+```
+
+### GitHub Actions Artifacts
+
+When tests run in CI, reports are uploaded as artifacts:
+
+<Steps>
+  <Step title="Navigate to Actions">
+    Go to the **Actions** tab in your GitHub repository
+  </Step>
+  
+  <Step title="Select Workflow Run">
+    Click on the specific workflow run you want to review
+  </Step>
+  
+  <Step title="Download Artifact">
+    Scroll to the **Artifacts** section and download `cucumber-report`
+  </Step>
+  
+  <Step title="Extract and Open">
+    Extract the ZIP file and open `test-results/index.html` in a browser
+  </Step>
+</Steps>
+
+<Info>
+Artifacts are retained for 30 days by default. You can adjust this in the workflow configuration.
+</Info>
+
+## Understanding Test Results
+
+### Status Indicators
+
+- **Green** - Test passed successfully
+- **Red** - Test failed
+- **Yellow** - Test skipped or pending
+- **Blue** - Test undefined (missing step implementations)
+
+### Execution Times
+
+Each scenario shows its execution time, helping identify slow tests:
+
+```
+Scenario: User login
+✓ Given I am on the login page (1.2s)
+✓ When I enter valid credentials (0.5s)
+✓ Then I should see the dashboard (2.1s)
+Total: 3.8s
+```
+
+### Error Information
+
+Failed scenarios include:
+- Error messages
+- Stack traces
+- Screenshot attachments (if configured)
+- Failed step details
+
+## Error Handling
+
+The generator includes robust error handling:
+
+### Missing JSON File
+
+```javascript
+if (fs.existsSync(jsonPath)) {
+  // Generate report
+} else {
+  console.warn('⚠️ No se pudo generar el reporte: El archivo JSON no existe');
+}
+```
+
+This prevents failures when tests crash before generating JSON output.
+
+### Generation Errors
+
+```javascript
+try {
+  reporter.generate(options);
+  console.log('✅ Reporte generado en: test-results/index.html');
+} catch (err) {
+  console.error('❌ Error al generar el reporte:', err.message);
+}
+```
+
+Captures and logs any errors during report generation.
+
+## Customizing Reports
+
+### Changing the Theme
+
+Available themes:
+- `bootstrap` (default)
+- `hierarchy`
+- `foundation`
+- `simple`
+
+```javascript
+theme: 'hierarchy'
+```
+
+### Adding Custom Metadata
+
+Extend the metadata object with project-specific information:
+
+```javascript
+metadata: {
+  'App Version': process.env.APP_VERSION || '1.0.0',
+  'Build Number': process.env.GITHUB_RUN_NUMBER,
+  'Git Commit': process.env.GITHUB_SHA?.substring(0, 7),
+  'Test Environment': process.env.TEST_ENV || 'Development',
+  'Browser': 'Chromium',
+  'Platform': process.platform,
+  'Executed By': process.env.GITHUB_ACTOR || 'Local'
+}
+```
+
+### Report Naming
+
+Generate reports with custom names:
+
+```javascript
+output: path.join(outputDir, `report-${Date.now()}.html`)
+```
+
+## Integration with Test Scripts
+
+### Feature-Specific Reports
+
+Each test script in `package.json` generates its own report:
+
+```json
+"test:login": "cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts tests/features/login.feature --tags @login --format json:test-results/cucumber-report.json & node cucumber-report-generator.js"
+```
+
+### Tag-Based Testing
+
+Run specific tags and generate focused reports:
+
+```bash
+npm run test:invoiceSearch
+```
+
+This executes only scenarios tagged with `@invoiceSearch` and generates a report for those tests.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Generate Reports" icon="check">
+    Include report generation in all test scripts for consistent documentation
+  </Card>
+  
+  <Card title="Keep Metadata Updated" icon="info">
+    Ensure metadata reflects current environment and version information
+  </Card>
+  
+  <Card title="Archive CI Reports" icon="archive">
+    Download and archive important CI reports before the 30-day retention expires
+  </Card>
+  
+  <Card title="Review Failed Tests" icon="magnifying-glass">
+    Use reports to identify patterns in test failures and flaky tests
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Report Not Generated
+
+**Problem:** No HTML file appears after test execution
+
+**Solutions:**
+- Verify `test-results/cucumber-report.json` exists
+- Check console for error messages from the generator
+- Ensure `cucumber-html-reporter` is installed: `npm install`
+
+### Empty or Incomplete Report
+
+**Problem:** Report shows no scenarios or missing data
+
+**Solutions:**
+- Confirm tests actually ran (check for JSON file content)
+- Verify the `--format json:test-results/cucumber-report.json` flag in test command
+- Check for JSON syntax errors in the report file
+
+### Report Doesn't Open
+
+**Problem:** HTML file exists but won't display
+
+**Solutions:**
+- Check browser console for JavaScript errors
+- Ensure all report assets loaded correctly
+- Try a different browser
+
+<Card title="CI/CD Setup" icon="github" href="/cicd/github-actions">
+  Learn how to configure GitHub Actions for automated testing and reporting
+</Card>

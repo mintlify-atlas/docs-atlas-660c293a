@@ -1,0 +1,208 @@
+---
+title: "API Testing Overview"
+description: "Learn how to perform API testing in the Contalink Test Framework using Playwright and Cucumber"
+---
+
+## What is API Testing?
+
+The Contalink Test Framework provides comprehensive API testing capabilities for backend services. API tests validate the behavior of REST endpoints without requiring a browser interface, making them faster and more focused than UI tests.
+
+## Playwright for API Testing
+
+Unlike traditional UI tests that use Playwright's browser automation, API tests leverage Playwright's built-in `fetch` API for making HTTP requests. This approach provides:
+
+- **Speed**: Direct HTTP calls without browser overhead
+- **Simplicity**: Clean request/response handling
+- **Flexibility**: Easy header and body manipulation
+- **Integration**: Seamless integration with Cucumber BDD scenarios
+
+### Basic API Request Structure
+
+All API requests in the framework follow this pattern:
+
+```typescript
+const response = await fetch(`${url}/V1/invoices?page=1`, {
+  method: 'GET',
+  headers: {
+    'Authorization': token,
+    'Content-Type': 'application/json',
+  },
+});
+```
+
+## Types of API Tests
+
+The framework supports all standard HTTP methods for comprehensive API testing:
+
+### GET Requests
+
+Retrieve data from the API:
+
+```typescript
+async viewAllInvoices(url: string, token: string): Promise<Response> {
+  const response = await fetch(`${url}/V1/invoices?page=1`, {
+    method: 'GET',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+  });
+  return response;
+}
+```
+
+### POST Requests
+
+Create new resources:
+
+```typescript
+async createInvoice(url: string, token: string, invoiceData: { [key: string]: string }): Promise<Response> {
+  const body = Object.fromEntries(Object.entries(invoiceData).slice(1));
+  
+  const response = await fetch(`${url}V1/invoices`, {
+    method: 'POST',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return response;
+}
+```
+
+### PUT/PATCH Requests
+
+Update existing resources:
+
+```typescript
+async invoicePatch(url: string, token: string, ID: string): Promise<Response> {
+  const body = { "total": 500 };
+  
+  const response = await fetch(`${url}V1/invoices/${ID}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return response;
+}
+```
+
+### DELETE Requests
+
+Remove resources:
+
+```typescript
+async deletInvoice(url: string, token: string, ID: string): Promise<Response> {
+  const response = await fetch(`${url}V1/invoices/${ID}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+  });
+  return response;
+}
+```
+
+## Authentication and Headers
+
+### Authorization Token
+
+All authenticated API requests require a bearer token passed in the `Authorization` header:
+
+```typescript
+const token = process.env.QA_PASSWORD as string;
+
+headers: {
+  'Authorization': token,
+  'Content-Type': 'application/json',
+}
+```
+
+The token is stored in environment variables for security and configured in the `.env` file.
+
+### Testing Without Authentication
+
+The framework also supports testing unauthorized access scenarios:
+
+```typescript
+async withoutToken(url: string, invoiceNumber: string): Promise<Response> {
+  const response = await fetch(`${url}V1/invoices?page=1&invoice_number=${invoiceNumber}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return response;
+}
+```
+
+## Response Validation
+
+API tests validate multiple aspects of the response:
+
+### Status Code Validation
+
+```typescript
+expect(response.status).toBe(200);
+```
+
+### Response Body Validation
+
+```typescript
+const data = await response.json();
+expect(data.invoices).toEqual([]);
+```
+
+### Complete Response Validation
+
+```typescript
+Then('valido el status 200 y que no este vacio', async function () {
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.invoices[0].id).toEqual(ID);
+  expect(data.invoices[0].invoiceNumber).toEqual(IN);
+});
+```
+
+### Error Response Validation
+
+Validate error messages and status codes:
+
+```typescript
+Then('recibo una respuesta con un status 401 ycon un mensaje de error {string}', async function (messageError: string) {
+  const data = await response.json();
+  expect(response.status).toBe(401);
+  expect(data.error).toBe(messageError);
+});
+```
+
+## Environment Configuration
+
+API tests use environment variables for configuration:
+
+```typescript
+import 'dotenv/config';
+
+const url = process.env.API_TEST as string;
+const token = process.env.QA_PASSWORD as string;
+```
+
+<Tip>
+Store sensitive data like API tokens and URLs in the `.env` file to keep them secure and separate from your test code.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Backend Tests" icon="flask" href="/api/backend-tests">
+    Explore real-world API test examples and patterns
+  </Card>
+  <Card title="Test Structure" icon="sitemap" href="/test-framework/structure">
+    Learn about the overall test framework structure
+  </Card>
+</CardGroup>

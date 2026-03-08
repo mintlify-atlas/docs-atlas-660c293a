@@ -1,0 +1,234 @@
+---
+title: 'Project Structure'
+description: 'Complete directory structure and organization of the Contalink Test Framework'
+icon: 'folder-tree'
+---
+
+## Overview
+
+The Contalink Test Framework follows a well-organized structure that separates concerns and promotes maintainability. The project uses Cucumber for BDD testing with Playwright as the automation engine, and K6 for performance testing.
+
+## Directory Structure
+
+```
+contalink-test-framework/
+├── tests/
+│   ├── features/          # Cucumber feature files (Gherkin)
+│   ├── steps/             # Step definitions
+│   ├── pages/             # Page Object Model classes
+│   └── performance/       # K6 performance test scripts
+├── test-results/          # Generated test reports
+├── .github/
+│   └── workflows/         # CI/CD workflows
+├── package.json           # Project dependencies and scripts
+├── tsconfig.json          # TypeScript configuration
+├── playwright.config.ts   # Playwright configuration
+├── cucumber-report-generator.js  # HTML report generator
+└── .env                   # Environment variables (not committed)
+```
+
+## Core Directories
+
+### tests/features/
+
+Contains Cucumber feature files written in Gherkin syntax. These define the test scenarios in a human-readable format.
+
+**Files:**
+- `login.feature` - Login functionality tests with valid and invalid credentials
+- `invoices.feature` - Invoice creation, editing, and deletion scenarios
+- `backTest.feature` - API backend tests for CRUD operations
+
+**Purpose:**
+- Define test scenarios in business language
+- Support collaboration between technical and non-technical team members
+- Use tags (@login, @invoices, @backTest) for selective test execution
+
+<Tip>
+Each feature file starts with a tag (e.g., `@login`) that can be used to run specific test suites.
+</Tip>
+
+### tests/steps/
+
+Contains step definition files that implement the Gherkin steps from feature files.
+
+**Files:**
+- `loginSteps.ts` - Implements login-related steps (Given/When/Then)
+- `invoicesSteps.ts` - Implements invoice management steps
+- `backTestSteps.ts` - Implements API testing steps with REST operations
+- `Hooks.ts` - Cucumber lifecycle hooks (Before/After/BeforeAll/AfterAll)
+
+**Purpose:**
+- Bridge between feature files and page objects
+- Initialize page objects and execute test actions
+- Manage test state and assertions
+- Handle browser lifecycle through hooks
+
+**Key Hook Functionality:**
+```typescript
+// Hooks.ts:9
+BeforeAll: Launches browser instance once
+Before: Creates new context and page for each scenario
+After: Closes page to clean up session
+AfterAll: Closes browser completely
+```
+
+### tests/pages/
+
+Implements the Page Object Model (POM) pattern for maintainable test code.
+
+**Files:**
+- `BasePage.ts` - Base class with common page methods and custom commands
+- `LoginPage.ts` - Login page selectors and actions
+- `invoicesPage.ts` - Invoice management page interactions
+- `backTestPage.ts` - API request methods for backend testing
+
+**Purpose:**
+- Encapsulate page-specific logic and selectors
+- Provide reusable methods for test interactions
+- Separate test logic from implementation details
+- Maintain single responsibility principle
+
+**Base Page Features:**
+```typescript
+// BasePage.ts:30-53
+Custom Commands:
+- fill() - Fill text fields
+- click() - Click elements
+- expectText() - Validate text content
+- selectOptions() - Select from dropdowns
+- waitForTimeout() - Wait for specified time
+```
+
+### tests/performance/
+
+Contains K6 performance testing scripts for load and stress testing.
+
+**Files:**
+- `performanceTest.js` - K6 script for API performance testing
+
+**Purpose:**
+- Validate API performance under load
+- Test with constant arrival rate (20 RPS for 30 seconds)
+- Measure response times and status codes
+- Identify performance bottlenecks
+
+**Test Configuration:**
+```javascript
+// performanceTest.js:14-18
+Rate: 20 requests per second
+Duration: 30 seconds
+Initial VUs: 10
+Max VUs: 50
+Target: < 500ms response time
+```
+
+## Configuration Files
+
+### package.json
+
+Defines project metadata, dependencies, and npm scripts.
+
+**Key Dependencies:**
+- `@cucumber/cucumber` - BDD testing framework
+- `@playwright/test` - Browser automation
+- `cucumber-html-reporter` - Report generation
+- `dotenv` - Environment variable management
+- `ts-node` - TypeScript execution
+
+### tsconfig.json
+
+TypeScript compiler configuration.
+
+**Settings:**
+```json
+// tsconfig.json:3-16
+Target: ES2020
+Module: commonjs
+RootDir: ./tests
+OutDir: ./dist
+Strict: true
+EsModuleInterop: true
+```
+
+### playwright.config.ts
+
+Playwright test runner configuration.
+
+**Key Settings:**
+```typescript
+// playwright.config.ts:27
+baseURL: process.env.HOST_PAGE
+trace: 'on-first-retry'
+headless: false
+retries: CI ? 2 : 0
+```
+
+**Supported Browsers:**
+- Chromium (Desktop Chrome)
+- Firefox (Desktop Firefox)
+- Webkit (Desktop Safari)
+
+### cucumber-report-generator.js
+
+Generates HTML reports from Cucumber JSON output.
+
+**Output:**
+- Location: `test-results/index.html`
+- Theme: Bootstrap
+- Includes: Test metadata, execution time, platform info
+
+## Test Reports
+
+The `test-results/` directory contains generated test artifacts:
+
+- `cucumber-report.json` - Raw test results in JSON format
+- `index.html` - Formatted HTML report with test outcomes
+
+<Note>
+Test results are generated automatically after each test run. The HTML report provides detailed information about passed/failed scenarios with timestamps.
+</Note>
+
+## CI/CD Integration
+
+The `.github/workflows/` directory contains GitHub Actions configurations for automated testing.
+
+**Purpose:**
+- Run tests automatically on push/pull requests
+- Execute tests in CI environment
+- Generate and store test reports
+- Validate code changes before merge
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Feature Organization" icon="file-lines">
+    Group related scenarios in feature files using descriptive names and tags
+  </Card>
+  <Card title="Page Objects" icon="layer-group">
+    Keep page objects focused on single pages with clear, reusable methods
+  </Card>
+  <Card title="Step Definitions" icon="stairs">
+    Write steps that read naturally and can be reused across features
+  </Card>
+  <Card title="Test Data" icon="database">
+    Use environment variables for sensitive data and configuration
+  </Card>
+</CardGroup>
+
+## File Naming Conventions
+
+- **Features**: `kebab-case.feature` (e.g., `invoice-creation.feature`)
+- **Steps**: `camelCaseSteps.ts` (e.g., `loginSteps.ts`)
+- **Pages**: `PascalCasePage.ts` (e.g., `LoginPage.ts`)
+- **Performance**: `camelCase.js` (e.g., `performanceTest.js`)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Commands" icon="terminal" href="/reference/commands">
+    Learn about available npm scripts and test commands
+  </Card>
+  <Card title="Environment Variables" icon="key" href="/reference/environment-variables">
+    Configure environment variables for your test environment
+  </Card>
+</CardGroup>

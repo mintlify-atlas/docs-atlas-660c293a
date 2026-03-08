@@ -1,0 +1,426 @@
+---
+title: Configuration
+description: Configure the Contalink Test Framework with environment variables, Playwright settings, and browser options
+---
+
+## Environment Variables
+
+The framework uses environment variables to manage configuration across different environments. These are stored in a `.env` file at the project root.
+
+### Creating the .env File
+
+<Steps>
+  <Step title="Create .env file">
+    In your project root directory, create a `.env` file:
+    
+    ```bash
+    touch .env
+    ```
+  </Step>
+  
+  <Step title="Add required variables">
+    Add the following environment variables to your `.env` file:
+    
+    ```bash .env
+    HOST_PAGE=https://your-application-url.com
+    QA_PASSWORD=your-secure-password
+    API_TEST=https://your-api-url.com
+    ```
+  </Step>
+</Steps>
+
+### Required Environment Variables
+
+<Note>
+  All three environment variables are required for the framework to function properly.
+</Note>
+
+| Variable | Description | Example | Used By |
+|----------|-------------|---------|----------|
+| `HOST_PAGE` | Base URL of the application under test | `https://app.contalink.com` | Playwright, K6 |
+| `QA_PASSWORD` | Authentication password for test scenarios | `SecurePass123!` | Cucumber steps |
+| `API_TEST` | API endpoint base URL for performance testing | `https://api.contalink.com` | K6 tests |
+
+### How Environment Variables are Used
+
+**In Playwright Configuration** (`playwright.config.ts:27`):
+```typescript
+import * as dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables from .env
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+export default defineConfig({
+  use: {
+    baseURL: process.env.HOST_PAGE,
+    trace: 'on-first-retry',
+    headless: false,
+  },
+});
+```
+
+**In Step Definitions** (`tests/steps/loginSteps.ts:11`):
+```typescript
+import 'dotenv/config';
+
+Given('que estoy en la página de login', async function () {
+  loginPage = new LoginPage(page);
+  const hostPage = process.env.HOST_PAGE;
+  await loginPage.navigateTo(hostPage as string);
+});
+
+When('ingreso la contraseña correcta', async function () {
+  const correctPassword = process.env.QA_PASSWORD as string;
+  await loginPage.enterPassword(correctPassword);
+  await loginPage.clickSubmit();
+});
+```
+
+**In K6 Performance Tests** (`tests/performance/performanceTest.js:5`):
+```javascript
+const url_api = __ENV.HOST_PAGE;
+const token = __ENV.QA_PASSWORD;
+
+export default function () {
+  const url = `${url_api}/V1/invoices?page=1`;
+  
+  const params = {
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+  };
+  
+  const res = http.get(url, params);
+}
+```
+
+<Warning>
+  **Security Best Practice**: Never commit the `.env` file to version control. Add it to `.gitignore`:
+  
+  ```bash .gitignore
+  .env
+  .env.local
+  .env.*.local
+  ```
+</Warning>
+
+## Playwright Configuration
+
+The `playwright.config.ts` file controls Playwright's behavior, including browser settings, test directory, and execution options.
+
+### Key Configuration Options
+
+```typescript playwright.config.ts
+import { defineConfig, devices } from '@playwright/test';
+import * as dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+export default defineConfig({
+  testDir: './integration',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  
+  use: {
+    baseURL: process.env.HOST_PAGE,
+    trace: 'on-first-retry',
+    headless: false,
+  },
+  
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
+});
+```
+
+### Configuration Properties Explained
+
+<CardGroup cols={2}>
+  <Card title="testDir" icon="folder">
+    Directory containing test files (default: `./integration`)
+  </Card>
+  
+  <Card title="fullyParallel" icon="arrows-split-up-and-left">
+    Runs test files in parallel for faster execution
+  </Card>
+  
+  <Card title="retries" icon="rotate">
+    Number of retries for failed tests (2 on CI, 0 locally)
+  </Card>
+  
+  <Card title="workers" icon="users">
+    Number of parallel worker processes (1 on CI, unlimited locally)
+  </Card>
+</CardGroup>
+
+### Browser Configuration
+
+The framework supports three browser engines:
+
+**Chromium (Default)**:
+```typescript
+{
+  name: 'chromium',
+  use: { ...devices['Desktop Chrome'] },
+}
+```
+
+**Firefox**:
+```typescript
+{
+  name: 'firefox',
+  use: { ...devices['Desktop Firefox'] },
+}
+```
+
+**WebKit (Safari)**:
+```typescript
+{
+  name: 'webkit',
+  use: { ...devices['Desktop Safari'] },
+}
+```
+
+<Info>
+  The Hooks file (`tests/steps/Hooks.ts:9`) launches Chromium in headless mode by default:
+  
+  ```typescript
+  BeforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+  });
+  ```
+  
+  Change `headless: true` to `headless: false` to see the browser during test execution.
+</Info>
+
+### Customizing Browser Options
+
+You can customize browser launch options in `tests/steps/Hooks.ts`:
+
+```typescript
+import { chromium, Browser, BrowserContext, Page } from '@playwright/test';
+
+BeforeAll(async () => {
+  browser = await chromium.launch({
+    headless: true,           // Run in headless mode
+    slowMo: 0,                // Slow down operations by X ms
+    devtools: false,          // Open devtools on launch
+    args: ['--start-maximized'], // Additional browser arguments
+  });
+});
+```
+
+### Test Execution Settings
+
+**Trace Collection** (`playwright.config.ts:29`):
+```typescript
+use: {
+  trace: 'on-first-retry',  // Collect trace on first retry
+}
+```
+
+Options:
+- `'on-first-retry'` - Only on first retry (recommended)
+- `'on'` - Always collect traces (slower)
+- `'off'` - Never collect traces
+- `'retain-on-failure'` - Keep only failed test traces
+
+**Base URL** (`playwright.config.ts:27`):
+```typescript
+use: {
+  baseURL: process.env.HOST_PAGE,
+}
+```
+
+Allows using relative URLs in tests:
+```typescript
+await page.goto('/login');  // Goes to ${HOST_PAGE}/login
+```
+
+## Test Directory Structure
+
+The framework follows a structured organization for test files:
+
+```
+tests/
+├── features/              # Cucumber feature files (BDD scenarios)
+│   ├── login.feature     # Login test scenarios
+│   ├── invoices.feature  # Invoice CRUD operations
+│   └── backTest.feature  # Additional test scenarios
+│
+├── steps/                 # Step definitions (Cucumber implementation)
+│   ├── Hooks.ts          # Test lifecycle hooks (Before/After)
+│   ├── loginSteps.ts     # Login step implementations
+│   ├── invoicesSteps.ts  # Invoice step implementations
+│   └── backTestSteps.ts  # Additional step implementations
+│
+├── pages/                 # Page Object Models
+│   ├── BasePage.ts       # Base class with reusable methods
+│   ├── LoginPage.ts      # Login page object
+│   ├── invoicesPage.ts   # Invoices page object
+│   └── backTestPage.ts   # Additional page objects
+│
+└── performance/           # K6 performance tests
+    └── performanceTest.js # API load testing scenarios
+```
+
+### Feature Files Structure
+
+Feature files use Cucumber tags for selective test execution:
+
+```gherkin tests/features/login.feature
+@login
+Feature: Login
+  
+  Se realizan pruebas de login para validar el acceso a la aplicación.
+  
+  Scenario: Validar un login con error de contraseña
+    Given que estoy en la página de login
+    When  ingreso una contraseña "Prueba123#"
+    Then  valido mensaje de error "El código de acceso no es válido"
+```
+
+### Page Object Pattern
+
+All page objects extend `BasePage` (`tests/pages/BasePage.ts:3`):
+
+```typescript
+export class BasePage {
+  protected page: Page;
+  
+  constructor(page: Page) {
+    this.page = page;
+  }
+  
+  // Reusable methods available to all page objects
+  async navigateTo(url: string): Promise<void> {
+    await this.page.goto(url);
+  }
+  
+  async fill(selector: string, text: string): Promise<void> {
+    await this.page.fill(selector, text);
+  }
+  
+  async click(selector: string): Promise<void> {
+    await this.page.click(selector);
+  }
+}
+```
+
+## K6 Performance Test Configuration
+
+K6 tests are configured with scenario options in `tests/performance/performanceTest.js`:
+
+```javascript
+export const options = {
+  scenarios: {
+    constant_request_rate: {
+      executor: 'constant-arrival-rate',
+      rate: 20,              // 20 requests per second (RPS)
+      timeUnit: '1s',        // Per second
+      duration: '30s',       // Test duration
+      preAllocatedVUs: 10,   // Initial virtual users
+      maxVUs: 50,            // Maximum virtual users
+    },
+  },
+};
+```
+
+### K6 Configuration Options
+
+| Option | Description | Default Value |
+|--------|-------------|---------------|
+| `executor` | Execution model | `constant-arrival-rate` |
+| `rate` | Requests per timeUnit | `20` |
+| `timeUnit` | Time unit for rate | `1s` |
+| `duration` | Total test duration | `30s` |
+| `preAllocatedVUs` | Initial VUs | `10` |
+| `maxVUs` | Maximum VUs | `50` |
+
+### Performance Test Checks
+
+```javascript
+check(res, {
+  'status es 200': (r) => r.status === 200,
+  'tiempo de respuesta < 500ms': (r) => r.timings.duration < 500,
+});
+```
+
+<Warning>
+  Adjust `maxVUs` and `rate` based on your application's capacity to avoid overloading the system.
+</Warning>
+
+## Running Tests with Configuration
+
+### Cucumber BDD Tests
+
+<CodeGroup>
+```bash Run all tests
+npm test
+```
+
+```bash Run specific tag
+npm run test:login
+```
+
+```bash Run invoice tests
+npm run test:invoiceCreation
+```
+
+```bash Custom tag execution
+cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts tests/features/**/*.feature --tags @yourTag
+```
+</CodeGroup>
+
+### K6 Performance Tests
+
+```bash
+npm run test:performance
+```
+
+This executes the K6 test with environment variables loaded via dotenv:
+
+```json package.json
+{
+  "scripts": {
+    "test:performance": "dotenv -- k6 run tests/performance/performanceTest.js"
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Writing Tests" icon="pen" href="/e2e/writing-tests">
+    Learn how to write feature files and step definitions
+  </Card>
+  
+  <Card title="Page Objects" icon="file-code" href="/e2e/page-object-model">
+    Create maintainable page object models
+  </Card>
+  
+  <Card title="Test Commands" icon="play" href="/reference/commands">
+    Execute tests and generate reports
+  </Card>
+  
+  <Card title="CI/CD Integration" icon="circle-nodes" href="/cicd/github-actions">
+    Integrate tests into your CI/CD pipeline
+  </Card>
+</CardGroup>

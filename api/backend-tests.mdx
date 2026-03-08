@@ -1,0 +1,416 @@
+---
+title: "Backend Tests"
+description: "Real-world examples of API testing with invoice endpoints using Cucumber and Playwright"
+---
+
+## Overview
+
+Backend tests in the Contalink Test Framework validate REST API endpoints for the invoice management system. These tests use Cucumber for BDD scenarios and Playwright's fetch API for making HTTP requests.
+
+## Test File Structure
+
+Backend tests are organized into three main components:
+
+- **Feature File**: `tests/features/backTest.feature` - Contains Gherkin scenarios
+- **Step Definitions**: `tests/steps/backTestSteps.ts` - Implements test logic
+- **Page Object**: `tests/pages/backTestPage.ts` - Encapsulates API calls
+
+## Invoice API Test Scenarios
+
+### Retrieving All Invoices
+
+Test fetching a paginated list of all invoices:
+
+```gherkin
+Scenario: Obtener todas las facturas
+  Given realizo un GET a la API de facturas
+  Then  recibo una respuesta con un status 200
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realizo un GET a la API de facturas', async function () {
+  response = await BackTestPage.prototype.viewAllInvoices(url, token);
+});
+
+Then('recibo una respuesta con un status 200', async function () {
+  expect(response.status).toBe(200);
+});
+```
+
+**API Method:**
+
+```typescript
+async viewAllInvoices(url: string, token: string): Promise<Response> {
+  const response = await fetch(`${url}/V1/invoices?page=1`, {
+    method: 'GET',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+  });
+  return response;
+}
+```
+
+### Searching for Specific Invoices
+
+Test searching by invoice number with query parameters:
+
+```gherkin
+Scenario: Obtener una lista vacía
+  Given realizo un GET a la API de facturas con el numero "FAC-x"
+  Then  recibo una respuesta con un status 200 y vacia
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realizo un GET a la API de facturas con el numero {string}', async function (invoiceNumber: string) {
+  response = await BackTestPage.prototype.viewInvoice(url, token, invoiceNumber);
+});
+
+Then('recibo una respuesta con un status 200 y vacia', async function () {
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.invoices).toEqual([]);
+});
+```
+
+## Creating Invoices
+
+### Successful Invoice Creation
+
+Test creating a new invoice with data tables:
+
+```gherkin
+Scenario: Crear una factura exitosamente
+  Given  inicio la creación de una factura:
+    |Campo Valor   |     Valor         |
+    |invoice_number|test-06            |
+    |total         |100                |
+    |invoice_date  |14/02/2026 10:01 PM|
+    |status        |Vigente            |
+    |active        |true               |
+  Then   valido el mensaje de status 201 y creación
+```
+
+**Step Implementation:**
+
+```typescript
+Given('inicio la creación de una factura:', async function (dataTable) {
+  const invoiceData = dataTable.rowsHash();
+  response = await BackTestPage.prototype.createInvoice(url, token, invoiceData);
+});
+
+Then('valido el mensaje de status 201 y creación', async function () {
+  const createData = await response.json();
+  ID = createData.id;
+  IN = createData.invoiceNumber;
+  expect(response.status).toBe(201);
+  expect(createData).toHaveId;
+});
+```
+
+**API Method:**
+
+```typescript
+async createInvoice(url: string, token: string, invoiceData: { [key: string]: string }): Promise<Response> {
+  const body = Object.fromEntries(Object.entries(invoiceData).slice(1));
+  
+  const response = await fetch(`${url}V1/invoices`, {
+    method: 'POST',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return response;
+}
+```
+
+## Updating Invoices
+
+### Full Update with PUT
+
+Replace entire invoice data:
+
+```gherkin
+Scenario: Editar una factura por PUT
+  Given realizo una petición PUT y actualizo datos
+  Then valido el status 200 y cambios del PUT
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realizo una petición PUT y actualizo datos', async function () {
+  response = await BackTestPage.prototype.invoicePut(url, token, ID);
+});
+
+Then('valido el status 200 y cambios del PUT', async function() {
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.invoiceNumber).toEqual('CHANCE-0123');
+  expect(data.total).toEqual(25);
+  expect(data.invoiceDate).toEqual("18/02/2026 04:01 AM");
+});
+```
+
+### Partial Update with PATCH
+
+Update specific fields only:
+
+```gherkin
+Scenario: Editar una factura por PATCH
+  Given realizo una petición PATH y actualizo datos
+  Then  valido  el status 200 y el cmbio del PATCH
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realizo una petición PATH y actualizo datos', async function () {
+  response = await BackTestPage.prototype.invoicePatch(url, token, ID);
+});
+
+Then('valido el status 200 y el cmbio del PATCH', async function () {
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.total).toEqual(500);
+});
+```
+
+**API Method:**
+
+```typescript
+async invoicePatch(url: string, token: string, ID: string): Promise<Response> {
+  const body = { "total": 500 };
+  
+  const response = await fetch(`${url}V1/invoices/${ID}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return response;
+}
+```
+
+## Deleting Invoices
+
+Test invoice deletion:
+
+```gherkin
+Scenario: Elimino la factura
+  Given realiso una petición a DELETE
+  Then valido el status 200 y mensaje de eliminación
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realiso una petición a DELETE', async function () {
+  response = await BackTestPage.prototype.deletInvoice(url, token, ID);
+});
+
+Then('valido el status 200 y mensaje de eliminación', async function () {
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.message).toBe('Factura eliminada exitosamente');
+});
+```
+
+**API Method:**
+
+```typescript
+async deletInvoice(url: string, token: string, ID: string): Promise<Response> {
+  const response = await fetch(`${url}V1/invoices/${ID}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+  });
+  return response;
+}
+```
+
+## Error Handling
+
+### 401 Unauthorized Error
+
+Test authentication failures:
+
+```gherkin
+Scenario: Buscar una factura sin accesos
+  Given realizo un GET a la API de facturas sin un token con el numero "FAC-1234"
+  Then  recibo una respuesta con un status 401 ycon un mensaje de error "Unauthorized"
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realizo un GET a la API de facturas sin un token con el numero {string}', async function (invoiceNumber: string) {
+  response = await BackTestPage.prototype.withoutToken(url, invoiceNumber);
+});
+
+Then('recibo una respuesta con un status 401 ycon un mensaje de error {string}', async function (messageError: string) {
+  const data = await response.json();
+  expect(response.status).toBe(401);
+  expect(data.error).toBe(messageError);
+});
+```
+
+**API Method Without Token:**
+
+```typescript
+async withoutToken(url: string, invoiceNumber: string): Promise<Response> {
+  const response = await fetch(`${url}V1/invoices?page=1&invoice_number=${invoiceNumber}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return response;
+}
+```
+
+### 422 Validation Error
+
+Test business logic validation:
+
+```gherkin
+Scenario: Error al crear una factura
+  Given realizo POST para factura
+  Then  recibo una respuesta con un status 422 ycon un mensaje de error "El total debe ser mayor a cero"
+```
+
+**Step Implementation:**
+
+```typescript
+Given('realizo POST para factura', async function () {
+  response = await BackTestPage.prototype.creationFailed(url, token);
+});
+
+Then('recibo una respuesta con un status 422 ycon un mensaje de error {string}', async function (messageError: string) {
+  const data = await response.json();
+  expect(response.status).toBe(422);
+  expect(data.error).toBe(messageError);
+});
+```
+
+**API Method with Invalid Data:**
+
+```typescript
+async creationFailed(url: string, token: string): Promise<Response> {
+  const body = {
+    invoice_number: "FAC-7081986",
+    total: -5,  // Invalid negative value
+    invoice_date: "2026-02-14T22:01:00Z",
+    status: "Vigente",
+    active: true
+  };
+  
+  const response = await fetch(`${url}V1/invoices`, {
+    method: 'POST',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return response;
+}
+```
+
+## Request/Response Patterns
+
+### State Management Between Steps
+
+Tests maintain state across steps using module-level variables:
+
+```typescript
+let response: any;  // Stores the last API response
+let ID: any;        // Stores the created invoice ID
+let IN: any;        // Stores the invoice number
+```
+
+This allows subsequent steps to reference data from previous operations:
+
+```typescript
+// Create invoice and store ID
+const createData = await response.json();
+ID = createData.id;
+IN = createData.invoiceNumber;
+
+// Use stored ID in next step
+response = await BackTestPage.prototype.viewInvoice(url, token, IN);
+```
+
+### Response Validation Pattern
+
+All API responses follow a consistent validation pattern:
+
+1. **Check status code**
+2. **Parse JSON response**
+3. **Validate response data**
+
+```typescript
+expect(response.status).toBe(200);
+const data = await response.json();
+expect(data.invoices[0].id).toEqual(ID);
+```
+
+## Running Backend Tests
+
+Execute the backend test suite using the npm script:
+
+```bash
+npm run test:backTest
+```
+
+This command:
+- Runs Cucumber with TypeScript support
+- Filters tests tagged with `@backTest`
+- Generates JSON report in `test-results/cucumber-report.json`
+- Automatically generates HTML report
+
+<Warning>
+Ensure your `.env` file contains valid `API_TEST` URL and `QA_PASSWORD` token before running backend tests.
+</Warning>
+
+## Full Command Breakdown
+
+```bash
+cucumber-js \
+  --require-module ts-node/register \
+  --require tests/steps/**/*.ts \
+  tests/features/**/*.feature \
+  --tags @backTest \
+  --format json:test-results/cucumber-report.json
+```
+
+- `--require-module ts-node/register`: Enables TypeScript support
+- `--require tests/steps/**/*.ts`: Loads step definitions
+- `--tags @backTest`: Runs only scenarios tagged with `@backTest`
+- `--format json`: Generates JSON report for HTML conversion
+
+<Tip>
+Use the `@backTest` tag in your feature files to include scenarios in the backend test suite.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Learn about API testing fundamentals
+  </Card>
+  <Card title="UI Tests" icon="browser" href="/ui-testing/overview">
+    Explore UI testing capabilities
+  </Card>
+</CardGroup>
