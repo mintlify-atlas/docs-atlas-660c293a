@@ -143,6 +143,10 @@ Scenario: Editar una factura por PUT
   Then valido el status 200 y cambios del PUT
 ```
 
+<Warning>
+The `invoicePut` method in `backTestPage.ts:90` actually uses the PATCH HTTP method, not PUT, despite its name. This is a naming inconsistency in the source code.
+</Warning>
+
 **Step Implementation:**
 
 ```typescript

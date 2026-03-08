@@ -68,14 +68,13 @@ Runs invoice search functionality tests.
 npm run test:invoiceSearch
 ```
 
-**Features tested:**
-- Searching for invoices by number
-- Validating search results
-- Handling empty search results
+<Note>
+This command is defined in `package.json` but references a feature file (`tests/features/invoiceSearch.feature`) that does not exist in the current codebase. Invoice search functionality is tested as part of the `test:invoiceCreation` command via the `invoices.feature` file, which includes search scenarios.
+</Note>
 
 **Tag filter:** `@invoiceSearch`
 
-**Source file:** `tests/features/invoiceSearch.feature`
+**Alternative:** Use `npm run test:invoiceCreation` to test invoice-related functionality including search.
 
 ### npm run test:invoiceCreation
 
