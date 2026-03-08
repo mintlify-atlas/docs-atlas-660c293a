@@ -1,0 +1,89 @@
+{
+  "projectType": "general",
+  "projectName": "Contalink Test Framework",
+  "projectDescription": "End-to-end testing framework using Playwright, Cucumber BDD, and K6 for comprehensive test automation",
+  "theme": "aspen",
+  "primaryColor": "#2563eb",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "configuration"
+            ]
+          },
+          {
+            "group": "E2E Testing",
+            "pages": [
+              "e2e/overview",
+              "e2e/page-object-model",
+              "e2e/writing-tests",
+              "e2e/gherkin-features"
+            ]
+          },
+          {
+            "group": "API Testing",
+            "pages": [
+              "api/overview",
+              "api/backend-tests"
+            ]
+          },
+          {
+            "group": "Performance Testing",
+            "pages": [
+              "performance/overview",
+              "performance/k6-tests"
+            ]
+          },
+          {
+            "group": "CI/CD",
+            "pages": [
+              "cicd/github-actions",
+              "cicd/reports"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/project-structure",
+              "reference/commands",
+              "reference/environment-variables"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "BDD testing with Cucumber and Gherkin syntax",
+    "Page Object Model pattern for maintainable tests",
+    "API testing with Playwright",
+    "Performance testing with K6",
+    "Automated HTML report generation",
+    "GitHub Actions CI/CD integration"
+  ],
+  "publicApiSurface": [
+    "BasePage - Base page class with reusable commands",
+    "LoginPage - Login page object",
+    "InvoicesPage - Invoice management page object",
+    "BackTestPage - Backend testing page object",
+    "npm test - Run all Cucumber tests",
+    "npm run test:login - Run login tests",
+    "npm run test:invoiceCreation - Run invoice creation tests",
+    "npm run test:backTest - Run backend API tests",
+    "npm run test:performance - Run K6 performance tests",
+    "npm run report - Generate Cucumber HTML report"
+  ]
+}
